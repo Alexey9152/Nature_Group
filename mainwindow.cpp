@@ -6,12 +6,12 @@
 #include <sstream>
 #include <cctype>
 #include <QFileDialog>
-#include <algorithm> // Добавлен для std::remove
+#include <algorithm>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
-    setWindowTitle("Expression Processor");
+    setWindowTitle("Калькулятор алгебралического выражения");
     resize(800, 600);
 
     // Create widgets
