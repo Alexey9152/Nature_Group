@@ -107,7 +107,7 @@ void MainWindow::runProgram()
     appendToOutput("Expression converted to RPN:", "green");
     appendToOutput(QString::fromStdString(RPN));
 
-    std::map<std::string, int> operands;
+    std::map<std::string, double> operands;
     if (!calculateRPN(RPN, operands)) {
         appendToOutput("Processing stopped due to errors", "red");
     }
@@ -378,7 +378,7 @@ bool MainWindow::convertToRPN(std::queue<char>& expression, std::string& B)
     return true;
 }
 
-bool MainWindow::calculateRPN(std::string& B, std::map<std::string, int>& operands)
+bool MainWindow::calculateRPN(std::string &B, std::map<std::string, double> &operands)
 {
     appendToOutput("\nReading operands and calculating expression...", "blue");
 
@@ -388,26 +388,23 @@ bool MainWindow::calculateRPN(std::string& B, std::map<std::string, int>& operan
         return false;
     }
 
-    // Skip first line (expression)
     std::string line;
     std::getline(in, line);
 
-    // Read operand definitions
     int lineNum = 2;
     while (std::getline(in, line)) {
-        // Remove carriage returns for Windows compatibility
         line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
 
-        // Skip empty lines
-        if (line.empty()) continue;
+        if (line.empty())
+            continue;
 
         size_t pos = line.find('=');
         if (pos == std::string::npos) {
-            appendToOutput(QString("ERROR: Line %1 - missing '=' in operand definition").arg(lineNum), "red");
+            appendToOutput(QString("ERROR: Line %1 - missing '=' in operand definition").arg(lineNum),
+                           "red");
             return false;
         }
 
-        // Extract operand name (trim whitespace)
         std::string name = line.substr(0, pos);
         size_t start = name.find_first_not_of(" \t");
         size_t end = name.find_last_not_of(" \t");
@@ -417,13 +414,14 @@ bool MainWindow::calculateRPN(std::string& B, std::map<std::string, int>& operan
         }
         name = name.substr(start, end - start + 1);
 
-        // Validate operand name
         if (std::all_of(name.begin(), name.end(), [](char c) { return std::isdigit(c); })) {
-            appendToOutput(QString("ERROR: Line %1 - operand name cannot be number: '%2'").arg(lineNum).arg(QString::fromStdString(name)), "red");
+            appendToOutput(QString("ERROR: Line %1 - operand name cannot be number: '%2'")
+                               .arg(lineNum)
+                               .arg(QString::fromStdString(name)),
+                               "red");
             return false;
         }
 
-        // Extract value
         std::string valueStr = line.substr(pos + 1);
         start = valueStr.find_first_not_of(" \t");
         if (start == std::string::npos) {
@@ -432,22 +430,26 @@ bool MainWindow::calculateRPN(std::string& B, std::map<std::string, int>& operan
         }
         valueStr = valueStr.substr(start);
 
-        // Convert value to integer
+        std::replace(valueStr.begin(), valueStr.end(), ',', '.');
+
         try {
-            int value = std::stoi(valueStr);
+            double value = std::stod(valueStr);
             operands[name] = value;
-            appendToOutput(QString("Operand: %1 = %2").arg(QString::fromStdString(name)).arg(value), "darkblue");
-        } catch (const std::exception&) {
-            appendToOutput(QString("ERROR: Line %1 - invalid operand value: '%2'").arg(lineNum).arg(QString::fromStdString(valueStr)), "red");
+            appendToOutput(QString("Operand: %1 = %2").arg(QString::fromStdString(name)).arg(value),
+                           "darkblue");
+        } catch (const std::exception &) {
+            appendToOutput(QString("ERROR: Line %1 - invalid operand value: '%2'")
+                               .arg(lineNum)
+                               .arg(QString::fromStdString(valueStr)),
+                               "red");
             return false;
         }
 
         lineNum++;
     }
 
-    // Prepare for calculation
     B += ' ';
-    std::stack<int> stack2;
+    std::stack<double> stack2;
     std::string token;
     size_t pos = 0;
     bool indicator = true;
@@ -457,22 +459,29 @@ bool MainWindow::calculateRPN(std::string& B, std::map<std::string, int>& operan
         token = B.substr(0, pos);
         B.erase(0, pos + 1);
 
-        if (token.empty()) continue;
+        if (token.empty())
+            continue;
 
-        // Check if token is operator
         if (token == "+" || token == "-" || token == "*" || token == "/") {
             if (stack2.size() < 2) {
-                appendToOutput("ERROR: Insufficient operands for operator: " + QString::fromStdString(token), "red");
+                appendToOutput("ERROR: Insufficient operands for operator: "
+                                   + QString::fromStdString(token),
+                               "red");
                 return false;
             }
 
-            int b = stack2.top(); stack2.pop();
-            int a = stack2.top(); stack2.pop();
-            int result = 0;
+            double b = stack2.top();
+            stack2.pop();
+            double a = stack2.top();
+            stack2.pop();
+            double result = 0;
 
-            if (token == "+") result = a + b;
-            else if (token == "-") result = a - b;
-            else if (token == "*") result = a * b;
+            if (token == "+")
+                result = a + b;
+            else if (token == "-")
+                result = a - b;
+            else if (token == "*")
+                result = a * b;
             else if (token == "/") {
                 if (b == 0) {
                     appendToOutput("ERROR: Division by zero", "red");
@@ -481,23 +490,34 @@ bool MainWindow::calculateRPN(std::string& B, std::map<std::string, int>& operan
                 result = a / b;
             }
 
-            calculationLog += QString("\n  %1 %2 %3 = %4").arg(a).arg(QString::fromStdString(token)).arg(b).arg(result);
+            calculationLog += QString("\n  %1 %2 %3 = %4")
+                                  .arg(a)
+                                  .arg(QString::fromStdString(token))
+                                  .arg(b)
+                                  .arg(result);
             stack2.push(result);
         }
-        // Check if token is a number
-        else if (std::all_of(token.begin(), token.end(), [](char c) { return std::isdigit(c); })) {
-            stack2.push(std::stoi(token));
-            calculationLog += QString("\n  Push number: %1").arg(QString::fromStdString(token));
+        else if (std::all_of(token.begin(), token.end(), [](char c) {
+                     return std::isdigit(c) || c == '.' || c == ',';
+                 })) {
+            std::replace(token.begin(), token.end(), ',', '.');
+            try {
+                stack2.push(std::stod(token));
+                calculationLog += QString("\n  Push number: %1").arg(QString::fromStdString(token));
+            } catch (const std::exception &) {
+                appendToOutput("ERROR: Invalid number format: " + QString::fromStdString(token), "red");
+                return false;
+            }
         }
-        // Otherwise treat as operand
         else {
             if (operands.find(token) == operands.end()) {
                 appendToOutput("ERROR: Undefined operand: " + QString::fromStdString(token), "red");
                 return false;
             }
-            int value = operands[token];
+            double value = operands[token];
             stack2.push(value);
-            calculationLog += QString("\n  Push operand %1 = %2").arg(QString::fromStdString(token)).arg(value);
+            calculationLog
+                += QString("\n  Push operand %1 = %2").arg(QString::fromStdString(token)).arg(value);
         }
     }
 
@@ -505,8 +525,18 @@ bool MainWindow::calculateRPN(std::string& B, std::map<std::string, int>& operan
         appendToOutput("ERROR: Malformed RPN expression", "red");
         return false;
     }
+    QString resultStr = formatDouble(stack2.top());
 
     appendToOutput(calculationLog, "darkgreen");
-    appendToOutput("\nResult: " + QString::number(stack2.top()), "green");
+    appendToOutput("\nResult: " + resultStr, "green");
     return true;
+}
+QString MainWindow::formatDouble(double value) {
+    QString result = QString::number(value, 'g', 10);
+    result.replace('.', ',');
+
+    if (result.contains(',') && result.split(',')[1].toDouble() == 0) {
+        result = result.split(',')[0];
+    }
+    return result;
 }
