@@ -14,7 +14,7 @@ MainWindow::MainWindow(QWidget *parent)
     setWindowTitle("Калькулятор алгебралического выражения");
     resize(800, 600);
 
-    // Create widgets
+    // Виджеты
     textEdit = new QTextEdit(this);
     textEdit->setReadOnly(true);
     runButton = new QPushButton("Run Program", this);
@@ -22,7 +22,6 @@ MainWindow::MainWindow(QWidget *parent)
     openButton = new QPushButton("Open File", this);
     clearButton = new QPushButton("Clear Output", this);
 
-    // Layout
     QWidget *centralWidget = new QWidget(this);
     QVBoxLayout *mainLayout = new QVBoxLayout(centralWidget);
     mainLayout->addWidget(textEdit);
@@ -36,15 +35,13 @@ MainWindow::MainWindow(QWidget *parent)
 
     setCentralWidget(centralWidget);
 
-    // Connections
     connect(runButton, &QPushButton::clicked, this, &MainWindow::runProgram);
     connect(aboutButton, &QPushButton::clicked, this, &MainWindow::showAbout);
     connect(openButton, &QPushButton::clicked, this, &MainWindow::openFile);
     connect(clearButton, &QPushButton::clicked, this, &MainWindow::clearOutput);
 
-    // Initial message
-    appendToOutput("Expression Processor is ready", "blue");
-    appendToOutput("Click 'Open File' to select input file or 'Run Program' to process the file");
+    appendToOutput("Все готово к запуску", "cyan");
+    appendToOutput("Нажмите 'Open File' чтобы выбрать файл и 'Run Program' чтобы начать его обработку", "cyan");
 }
 
 void MainWindow::appendToOutput(const QString& text, const QString& color)
@@ -55,15 +52,16 @@ void MainWindow::appendToOutput(const QString& text, const QString& color)
 void MainWindow::showAbout()
 {
     QString aboutText =
-        "THIS PROGRAM CHECKS FOR ERRORS WHEN WRITING EXPRESSIONS\n"
-        "FROM A FILE, CONVERTS TO REVERSE POLISH NOTATION,\n"
-        "CALCULATING THE VALUE OF THE EXPRESSION\n\n"
-        "File format requirements:\n"
-        "- First line: expression\n"
-        "- Subsequent lines: operand definitions (name = value)\n"
-        "- Operand names cannot be numbers and cannot contain '='\n\n"
-        "Supported operations: +, -, *, /\n"
-        "Supported brackets: (), [], {}";
+        "ЭТА ПРОГРАММА ПРОВЕРЯЕТ ОШИБКИ ПРИ ЗАПИСИ ВЫРАЖЕНИЙ\n"
+        "ИЗ ФАЙЛА, ПРЕОБРАЗУЕТ В ОБРАТНУЮ ПОЛЬСКУЮ ЗАПИСЬ,\n"
+        "ВЫЧИСЛЯЕТ ЗНАЧЕНИЕ ВЫРАЖЕНИЯ\n\n"
+        "Требования к формату файла:\n"
+        "- Первая строка: выражение\n"
+        "- Последующие строки: определения операндов (имя = значение)\n"
+        "- Имена операндов не могут быть числами и не должны содержать '='\n\n"
+        "Поддерживаемые операции: +, -, *, /\n"
+        "Поддерживаемые скобки: (), [], {}";
+
 
     QMessageBox::information(this, "About Program", aboutText);
 }
@@ -73,7 +71,7 @@ void MainWindow::openFile()
     QString fileName = QFileDialog::getOpenFileName(this, "Open Input File", "", "Text Files (*.txt)");
     if (!fileName.isEmpty()) {
         currentFile = fileName;
-        appendToOutput("Selected file: " + fileName, "blue");
+        appendToOutput("Выбран файл: " + fileName, "blue");
     }
 }
 
@@ -85,47 +83,47 @@ void MainWindow::clearOutput()
 void MainWindow::runProgram()
 {
     if (currentFile.isEmpty()) {
-        appendToOutput("ERROR: No file selected. Click 'Open File' first.", "red");
+        appendToOutput("ERROR: Файл не выбран. Нажмите 'Open File'", "red");
         return;
     }
 
     textEdit->clear();
-    appendToOutput("Processing file: " + currentFile, "blue");
+    appendToOutput("Обработка файла: " + currentFile, "white");
 
     std::queue<char> expression;
     if (!readExpression(expression)) {
-        appendToOutput("Processing stopped due to errors", "red");
+        appendToOutput("Обработка файла остановлена из-за ошибок", "red");
         return;
     }
 
     std::string RPN;
     if (!convertToRPN(expression, RPN)) {
-        appendToOutput("Processing stopped due to errors", "red");
+        appendToOutput("Обработка файла остановлена из-за ошибок", "red");
         return;
     }
 
-    appendToOutput("Expression converted to RPN:", "green");
-    appendToOutput(QString::fromStdString(RPN));
+    appendToOutput("Выражение конвентировано в ОПЗ:", "green");
+    appendToOutput(QString::fromStdString(RPN), "white");
 
     std::map<std::string, double> operands;
     if (!calculateRPN(RPN, operands)) {
-        appendToOutput("Processing stopped due to errors", "red");
+        appendToOutput("Обработка файла остановлена из-за ошибок", "red");
     }
 }
 
 bool MainWindow::readExpression(std::queue<char>& expression)
 {
-    appendToOutput("\nReading expression from file...", "blue");
+    appendToOutput("\nЧтение выражения из файла...", "cyan");
 
     std::ifstream in(currentFile.toStdString());
     if (!in.is_open()) {
-        appendToOutput("ERROR: File did not open properly", "red");
+        appendToOutput("ERROR: Файл не открыт", "red");
         return false;
     }
 
     std::string line;
     if (!std::getline(in, line)) {
-        appendToOutput("ERROR: File is empty", "red");
+        appendToOutput("ERROR: Файл пуст", "red");
         return false;
     }
 
@@ -136,14 +134,14 @@ bool MainWindow::readExpression(std::queue<char>& expression)
         expression.push(c);
     }
 
-    appendToOutput("Expression read successfully:", "green");
-    appendToOutput(QString::fromStdString(line));
+    appendToOutput("Выражение успешно прочитано:", "cyan");
+    appendToOutput(QString::fromStdString(line), "white");
     return true;
 }
 
 bool MainWindow::convertToRPN(std::queue<char>& expression, std::string& B)
 {
-    appendToOutput("\nConverting to RPN and checking for errors...", "blue");
+    appendToOutput("\nПреобразование в ОПЗ и проверка на ошибки...", "cyan");
 
     char a;
     std::stack<char> stack1;
@@ -160,7 +158,7 @@ bool MainWindow::convertToRPN(std::queue<char>& expression, std::string& B)
         if (a == '(' || a == '[' || a == '{') {
             if (pred != '+' && pred != '-' && pred != '*' && pred != '/' &&
                 pred != '(' && pred != '[' && pred != '{' && pred != 0) {
-                errorMessage = QString("ERROR: Operator absence before '%1'").arg(a);
+                errorMessage = QString("ОШИБКА: Отсутствует оператор перед '%1'").arg(a);
                 indicator = false;
             }
             else {
@@ -168,35 +166,35 @@ bool MainWindow::convertToRPN(std::queue<char>& expression, std::string& B)
             }
         }
         else if ((a == '+' || a == '-' || a == '*' || a == '/') && expression.empty()) {
-            errorMessage = QString("ERROR: Missing right operand after '%1'").arg(a);
+            errorMessage = QString("ОШИБКА: Отсутствует правый операнд после '%1'").arg(a);
             indicator = false;
         }
         else if (a == ')') {
             if (pred == '(') {
-                errorMessage = "ERROR: Empty brackets ()";
+                errorMessage = "ОШИБКА: Пустые скобки ()";
                 indicator = false;
             }
             else {
                 if (stack1.empty()) {
-                    errorMessage = "ERROR: Mismatched brackets - no opening bracket for )";
+                    errorMessage = "ОШИБКА: Несоответствие скобок - нет открывающей скобки для )";
                     indicator = false;
                 }
                 else {
                     while (stack1.top() != '(' && indicator) {
                         if (stack1.empty()) {
-                            errorMessage = "ERROR: Mismatched brackets - no opening bracket for )";
+                            errorMessage = "ОШИБКА: Несоответствие скобок - нет открывающей скобки для )";
                             indicator = false;
                         }
                         else if (pred == '-' || pred == '+' || pred == '*' || pred == '/') {
-                            errorMessage = "ERROR: Missing right operand";
+                            errorMessage = "ОШИБКА: Отсутствует правый операнд";
                             indicator = false;
                         }
                         else if (stack1.top() == '[') {
-                            errorMessage = "ERROR: Unclosed square bracket [";
+                            errorMessage = "ОШИБКА: Незакрытая квадратная скобка [";
                             indicator = false;
                         }
                         else if (stack1.top() == '{') {
-                            errorMessage = "ERROR: Unclosed curly bracket {";
+                            errorMessage = "ОШИБКА: Незакрытая фигурная скобка {";
                             indicator = false;
                         }
                         else {
@@ -211,30 +209,30 @@ bool MainWindow::convertToRPN(std::queue<char>& expression, std::string& B)
         }
         else if (a == ']') {
             if (pred == '[') {
-                errorMessage = "ERROR: Empty brackets []";
+                errorMessage = "ОШИБКА: Пустые скобки []";
                 indicator = false;
             }
             else {
                 if (stack1.empty()) {
-                    errorMessage = "ERROR: Mismatched brackets - no opening bracket for ]";
+                    errorMessage = "ОШИБКА: Несоответствие скобок - нет открывающей скобки для ]";
                     indicator = false;
                 }
                 else {
                     while (stack1.top() != '[' && indicator) {
                         if (stack1.empty()) {
-                            errorMessage = "ERROR: Mismatched brackets - no opening bracket for ]";
+                            errorMessage = "ОШИБКА: Несоответствие скобок - нет открывающей скобки для ]";
                             indicator = false;
                         }
                         else if (pred == '-' || pred == '+' || pred == '*' || pred == '/') {
-                            errorMessage = "ERROR: Missing right operand";
+                            errorMessage = "ОШИБКА: Отсутствует правый операнд";
                             indicator = false;
                         }
                         else if (stack1.top() == '(') {
-                            errorMessage = "ERROR: Unclosed round bracket (";
+                            errorMessage = "ОШИБКА: Незакрытая круглая скобка (";
                             indicator = false;
                         }
                         else if (stack1.top() == '{') {
-                            errorMessage = "ERROR: Unclosed curly bracket {";
+                            errorMessage = "ОШИБКА: Незакрытая фигурная скобка {";
                             indicator = false;
                         }
                         else {
@@ -249,30 +247,30 @@ bool MainWindow::convertToRPN(std::queue<char>& expression, std::string& B)
         }
         else if (a == '}') {
             if (pred == '{') {
-                errorMessage = "ERROR: Empty brackets {}";
+                errorMessage = "ОШИБКА: Пустые скобки {}";
                 indicator = false;
             }
             else {
                 if (stack1.empty()) {
-                    errorMessage = "ERROR: Mismatched brackets - no opening bracket for }";
+                    errorMessage = "ОШИБКА: Несоответствие скобок - нет открывающей скобки для }";
                     indicator = false;
                 }
                 else {
                     while (stack1.top() != '{' && indicator) {
                         if (stack1.empty()) {
-                            errorMessage = "ERROR: Mismatched brackets - no opening bracket for }";
+                            errorMessage = "ОШИБКА: Несоответствие скобок - нет открывающей скобки для }";
                             indicator = false;
                         }
                         else if (pred == '-' || pred == '+' || pred == '*' || pred == '/') {
-                            errorMessage = "ERROR: Missing right operand";
+                            errorMessage = "ОШИБКА: Отсутствует правый операнд";
                             indicator = false;
                         }
                         else if (stack1.top() == '[') {
-                            errorMessage = "ERROR: Unclosed square bracket [";
+                            errorMessage = "ОШИБКА: Незакрытая квадратная скобка [";
                             indicator = false;
                         }
                         else if (stack1.top() == '(') {
-                            errorMessage = "ERROR: Unclosed round bracket (";
+                            errorMessage = "ОШИБКА: Незакрытая круглая скобка (";
                             indicator = false;
                         }
                         else {
@@ -296,7 +294,7 @@ bool MainWindow::convertToRPN(std::queue<char>& expression, std::string& B)
                 expressionOutput += "0";
             }
             else if (pred == '*' || pred == '/' || pred == '+' || pred == '-') {
-                errorMessage = QString("ERROR: Two operators in a row: '%1%2'").arg(pred).arg(a);
+                errorMessage = QString("ОШИБКА: Два оператора подряд: '%1%2'").arg(pred).arg(a);
                 indicator = false;
             }
             else {
@@ -310,11 +308,11 @@ bool MainWindow::convertToRPN(std::queue<char>& expression, std::string& B)
         }
         else if ((a == '*' || a == '/')) {
             if (pred == 0 || pred == '(' || pred == '[' || pred == '{') {
-                errorMessage = QString("ERROR: Missing left operand for '%1'").arg(a);
+                errorMessage = QString("ОШИБКА: Отсутствует левый операнд для '%1'").arg(a);
                 indicator = false;
             }
             else if (pred == '*' || pred == '/' || pred == '+' || pred == '-') {
-                errorMessage = QString("ERROR: Two operators in a row: '%1%2'").arg(pred).arg(a);
+                errorMessage = QString("ОШИБКА: Два оператора подряд: '%1%2'").arg(pred).arg(a);
                 indicator = false;
             }
             else {
@@ -329,12 +327,12 @@ bool MainWindow::convertToRPN(std::queue<char>& expression, std::string& B)
         }
         else {
             if (pred == ')' || pred == ']' || pred == '}') {
-                errorMessage = QString("ERROR: Operator absence after '%1' before '%2'").arg(pred).arg(a);
+                errorMessage = QString("ОШИБКА: Отсутствует оператор после '%1' перед '%2'").arg(pred).arg(a);
                 indicator = false;
             }
             else if (pred != 0 && pred != '(' && pred != ')' && pred != '[' && pred != ']' &&
                      pred != '{' && pred != '}' && pred != '+' && pred != '-' && pred != '*' && pred != '/') {
-                // For multi-character operands, remove space between characters
+                // Для многосимвольных операндов удаляем пробел между символами
                 if (!B.empty()) B.pop_back();
             }
             B.push_back(a);
@@ -345,15 +343,15 @@ bool MainWindow::convertToRPN(std::queue<char>& expression, std::string& B)
 
     while (!stack1.empty() && indicator) {
         if (stack1.top() == '(') {
-            errorMessage = "ERROR: Unclosed round bracket (";
+            errorMessage = "ОШИБКА: Незакрытая круглая скобка (";
             indicator = false;
         }
         else if (stack1.top() == '[') {
-            errorMessage = "ERROR: Unclosed square bracket [";
+            errorMessage = "ОШИБКА: Незакрытая квадратная скобка [";
             indicator = false;
         }
         else if (stack1.top() == '{') {
-            errorMessage = "ERROR: Unclosed curly bracket {";
+            errorMessage = "ОШИБКА: Незакрытая фигурная скобка {";
             indicator = false;
         }
         else {
@@ -364,27 +362,25 @@ bool MainWindow::convertToRPN(std::queue<char>& expression, std::string& B)
     }
 
     if (!indicator) {
-        appendToOutput("Expression: " + expressionOutput, "black");
+        appendToOutput("Выражение: " + expressionOutput, "blue");
         appendToOutput(errorMessage, "red");
         return false;
     }
 
     if (B.empty()) {
-        appendToOutput("ERROR: Empty expression after conversion", "red");
+        appendToOutput("ОШИБКА: Пустое выражение после преобразования", "red");
         return false;
     }
 
-    appendToOutput("Expression processed successfully", "green");
+    appendToOutput("Выражение успешно обработано", "green");
     return true;
 }
 
 bool MainWindow::calculateRPN(std::string &B, std::map<std::string, double> &operands)
 {
-    appendToOutput("\nReading operands and calculating expression...", "blue");
-
     std::ifstream in(currentFile.toStdString());
     if (!in.is_open()) {
-        appendToOutput("ERROR: Failed to reopen file for reading operands", "red");
+        appendToOutput("ERROR: ошибка при повторном открытии файла", "red");
         return false;
     }
 
@@ -400,7 +396,7 @@ bool MainWindow::calculateRPN(std::string &B, std::map<std::string, double> &ope
 
         size_t pos = line.find('=');
         if (pos == std::string::npos) {
-            appendToOutput(QString("ERROR: Line %1 - missing '=' in operand definition").arg(lineNum),
+            appendToOutput(QString("ERROR: Строка %1 - пропуск '='").arg(lineNum),
                            "red");
             return false;
         }
@@ -409,13 +405,13 @@ bool MainWindow::calculateRPN(std::string &B, std::map<std::string, double> &ope
         size_t start = name.find_first_not_of(" \t");
         size_t end = name.find_last_not_of(" \t");
         if (start == std::string::npos) {
-            appendToOutput(QString("ERROR: Line %1 - missing operand name").arg(lineNum), "red");
+            appendToOutput(QString("ERROR: Строка %1 - отсутствует имя операнда").arg(lineNum), "red");
             return false;
         }
         name = name.substr(start, end - start + 1);
 
         if (std::all_of(name.begin(), name.end(), [](char c) { return std::isdigit(c); })) {
-            appendToOutput(QString("ERROR: Line %1 - operand name cannot be number: '%2'")
+            appendToOutput(QString("ERROR: Строка %1 - имя операнда не может быть числом: '%2'")
                                .arg(lineNum)
                                .arg(QString::fromStdString(name)),
                                "red");
@@ -425,7 +421,7 @@ bool MainWindow::calculateRPN(std::string &B, std::map<std::string, double> &ope
         std::string valueStr = line.substr(pos + 1);
         start = valueStr.find_first_not_of(" \t");
         if (start == std::string::npos) {
-            appendToOutput(QString("ERROR: Line %1 - missing operand value").arg(lineNum), "red");
+            appendToOutput(QString("ERROR: Строка %1 - пропущено значение операнда").arg(lineNum), "red");
             return false;
         }
         valueStr = valueStr.substr(start);
@@ -435,10 +431,10 @@ bool MainWindow::calculateRPN(std::string &B, std::map<std::string, double> &ope
         try {
             double value = std::stod(valueStr);
             operands[name] = value;
-            appendToOutput(QString("Operand: %1 = %2").arg(QString::fromStdString(name)).arg(value),
-                           "darkblue");
+            appendToOutput(QString("Операнд: %1 = %2").arg(QString::fromStdString(name)).arg(value),
+                           "blue");
         } catch (const std::exception &) {
-            appendToOutput(QString("ERROR: Line %1 - invalid operand value: '%2'")
+            appendToOutput(QString("ERROR: Строка %1 - некорректное значение: '%2'")
                                .arg(lineNum)
                                .arg(QString::fromStdString(valueStr)),
                                "red");
@@ -453,7 +449,7 @@ bool MainWindow::calculateRPN(std::string &B, std::map<std::string, double> &ope
     std::string token;
     size_t pos = 0;
     bool indicator = true;
-    QString calculationLog = "Calculation steps:";
+    QString calculationLog = "Шаги расчета:\n";
 
     while ((pos = B.find(' ')) != std::string::npos && indicator) {
         token = B.substr(0, pos);
@@ -464,7 +460,7 @@ bool MainWindow::calculateRPN(std::string &B, std::map<std::string, double> &ope
 
         if (token == "+" || token == "-" || token == "*" || token == "/") {
             if (stack2.size() < 2) {
-                appendToOutput("ERROR: Insufficient operands for operator: "
+                appendToOutput("ERROR: Недостаточно операндов для оператора: "
                                    + QString::fromStdString(token),
                                "red");
                 return false;
@@ -484,7 +480,7 @@ bool MainWindow::calculateRPN(std::string &B, std::map<std::string, double> &ope
                 result = a * b;
             else if (token == "/") {
                 if (b == 0) {
-                    appendToOutput("ERROR: Division by zero", "red");
+                    appendToOutput("ERROR: деление на ноль", "red");
                     return false;
                 }
                 result = a / b;
@@ -503,32 +499,32 @@ bool MainWindow::calculateRPN(std::string &B, std::map<std::string, double> &ope
             std::replace(token.begin(), token.end(), ',', '.');
             try {
                 stack2.push(std::stod(token));
-                calculationLog += QString("\n  Push number: %1").arg(QString::fromStdString(token));
+                calculationLog += QString("\n  Поместили операнд: %1").arg(QString::fromStdString(token));
             } catch (const std::exception &) {
-                appendToOutput("ERROR: Invalid number format: " + QString::fromStdString(token), "red");
+                appendToOutput("ERROR: Некорректный числовой формат: " + QString::fromStdString(token), "red");
                 return false;
             }
         }
         else {
             if (operands.find(token) == operands.end()) {
-                appendToOutput("ERROR: Undefined operand: " + QString::fromStdString(token), "red");
+                appendToOutput("ERROR: Неопределённый операнд: " + QString::fromStdString(token), "red");
                 return false;
             }
             double value = operands[token];
             stack2.push(value);
             calculationLog
-                += QString("\n  Push operand %1 = %2").arg(QString::fromStdString(token)).arg(value);
+                += QString("\n  Поместили операнд %1 = %2").arg(QString::fromStdString(token)).arg(value);
         }
     }
 
     if (stack2.size() != 1) {
-        appendToOutput("ERROR: Malformed RPN expression", "red");
+        appendToOutput("ERROR: Неверно сформированное RPN выражение", "red");
         return false;
     }
     QString resultStr = formatDouble(stack2.top());
 
-    appendToOutput(calculationLog, "darkgreen");
-    appendToOutput("\nResult: " + resultStr, "green");
+    appendToOutput(calculationLog, "green");
+    appendToOutput("\nРезультат: " + resultStr, "white");
     return true;
 }
 QString MainWindow::formatDouble(double value) {
