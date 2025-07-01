@@ -2,29 +2,39 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <QLineEdit>
+#include <QTextEdit>
 #include <QPushButton>
-#include <QLabel>
-#include <QVBoxLayout>
-#include <QWidget>
+#include <QFile>
+#include <queue>
+#include <stack>
+#include <map>
+#include <string>
 
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
 
 public:
-    MainWindow(QWidget *parent = nullptr);
-    ~MainWindow();
+    explicit MainWindow(QWidget *parent = nullptr);
 
 private slots:
-    void checkSequence();
+    void runProgram();
+    void showAbout();
+    void openFile();
+    void clearOutput();
 
 private:
-    QLineEdit *inputField;
-    QPushButton *checkButton;
-    QLabel *resultLabel;
+    bool readExpression(std::queue<char>& expression);
+    bool convertToRPN(std::queue<char>& expression, std::string& B);
+    bool calculateRPN(std::string& B, std::map<std::string, int>& operands);
+    void appendToOutput(const QString& text, const QString& color = "black");
 
-    bool isValidSequence(const QString& sequence);
+    QTextEdit *textEdit;
+    QPushButton *runButton;
+    QPushButton *aboutButton;
+    QPushButton *openButton;
+    QPushButton *clearButton;
+    QString currentFile;
 };
 
 #endif // MAINWINDOW_H
