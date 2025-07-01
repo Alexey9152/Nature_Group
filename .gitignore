@@ -1,2 +1,21 @@
 *.pro
 *.pro.user
+
+# Qt project ignores
+build-*/
+*.app
+*.autosave
+*.pro.user
+*.pro.user.*
+*.user
+.DS_Store
+moc_*
+ui_*
+qrc_*
+*.obj
+*.o
+*.pch
+*.exe
+*.dll
+*~
+*.bak
