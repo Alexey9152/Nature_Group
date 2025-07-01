@@ -26,8 +26,9 @@ private slots:
 private:
     bool readExpression(std::queue<char>& expression);
     bool convertToRPN(std::queue<char>& expression, std::string& B);
-    bool calculateRPN(std::string& B, std::map<std::string, int>& operands);
+    bool calculateRPN(std::string &B, std::map<std::string, double> &operands);
     void appendToOutput(const QString& text, const QString& color = "black");
+    QString formatDouble(double value);
 
     QTextEdit *textEdit;
     QPushButton *runButton;
