@@ -1,24 +1,54 @@
-# macOS system files
+# Qt project files
+*.pro.user
+*.pro.user.*
+*.user
+
+# Build directories
+build*/
+build-*/
+*/build*/
+*/build-*/
+Debug/
+Release/
+x64/
+x86/
+*.build/
+
+# Qt Creator files
+.qtc_clangd/
+.qtc_clangd/*
+.cache/
+.config/
+.autotools/
+.project
+.cproject
+.settings/
+
+# macOS
+*.app
+*.app.dSYM
 .DS_Store
 
-# Qt build artifacts
-build-*/
-*.user
-*.user.*
-*.autosave
-
-# Compiled files
-*.o
-*.moc
-*.moc_*
-*.qrc.d
-qrc_*.cpp
-ui_*.h
-
-# Executables
-*.app
+# Windows
 *.exe
+*.dll
+*.obj
+*.pch
+*.lib
 
-# QMake files
-Makefile*
-*.pro.user
+# Autosave and backup files
+*~
+*.autosave
+*.bak
+*.tmp
+
+# Generated files by Qt
+moc_*
+ui_*
+qrc_*
+*.moc
+*.o
+*.obj
+
+# Other
+Thumbs.db
