@@ -1,13 +1,13 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
-#include <QMainWindow>
-#include <QTextEdit>
-#include <QPushButton>
 #include <QFile>
+#include <QMainWindow>
+#include <QPushButton>
+#include <QTextEdit>
+#include <map>
 #include <queue>
 #include <stack>
-#include <map>
 #include <string>
 
 class MainWindow : public QMainWindow
@@ -24,11 +24,12 @@ private slots:
     void clearOutput();
 
 private:
-    bool readExpression(std::queue<char>& expression);
-    bool convertToRPN(std::queue<char>& expression, std::string& B);
+    bool readExpression(std::queue<char> &expression);
+    bool convertToRPN(std::queue<char> &expression, std::string &B);
     bool calculateRPN(std::string &B, std::map<std::string, double> &operands);
-    void appendToOutput(const QString& text, const QString& color = "black");
+    void appendToOutput(const QString &text, const QString &color = "black");
     QString formatDouble(double value);
+    bool convertToBinaryAndSave(const QString& txtFileName, const QString& binFileName);
 
     QTextEdit *textEdit;
     QPushButton *runButton;
