@@ -1,0 +1,24 @@
+# macOS system files
+.DS_Store
+
+# Qt build artifacts
+build-*/
+*.user
+*.user.*
+*.autosave
+
+# Compiled files
+*.o
+*.moc
+*.moc_*
+*.qrc.d
+qrc_*.cpp
+ui_*.h
+
+# Executables
+*.app
+*.exe
+
+# QMake files
+Makefile*
+*.pro.user
