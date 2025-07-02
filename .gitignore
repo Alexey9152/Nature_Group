@@ -2,6 +2,8 @@
 *.pro.user
 
 # Qt project ignores
+build-*
+*/build-*
 *.app
 *.autosave
 *.pro.user
