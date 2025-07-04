@@ -9,6 +9,9 @@
 #include <QMessageBox>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
+#include <QLabel>
+#include <QLineEdit>
+#include <QSpinBox>
 #include <fstream>
 #include <queue>
 #include <map>
@@ -33,13 +36,15 @@ private:
     bool readExpression(std::queue<char> &expression);
     void sendToServer(const QString& expression, const std::map<std::string, double>& operands);
     QString formatDouble(double value);
-    void appendToOutput(const QString &text, const QString &color = "black"); // Добавлено объявление
+    void appendToOutput(const QString &text, const QString &color = "black");
 
     QTextEdit *textEdit;
     QPushButton *runButton;
     QPushButton *aboutButton;
     QPushButton *openButton;
     QPushButton *clearButton;
+    QLineEdit *ipEdit;       // Поле для ввода IP
+    QSpinBox *portSpin;      // Поле для ввода порта
     QTcpSocket *tcpSocket;
     QString currentFile;
 };

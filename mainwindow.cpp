@@ -1,10 +1,12 @@
 #include "mainwindow.h"
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
     setWindowTitle("Калькулятор алгебраического выражения");
     resize(800, 600);
 
+    // Виджеты
     textEdit = new QTextEdit(this);
     textEdit->setReadOnly(true);
     runButton = new QPushButton("Run Program", this);
@@ -13,8 +15,23 @@ MainWindow::MainWindow(QWidget *parent)
     clearButton = new QPushButton("Clear Output", this);
     tcpSocket = new QTcpSocket(this);
 
+    // Добавляем поля для IP и порта
+    ipEdit = new QLineEdit("localhost", this);
+    portSpin = new QSpinBox(this);
+    portSpin->setRange(1, 65535);
+    portSpin->setValue(12345);
+
     QWidget *centralWidget = new QWidget(this);
     QVBoxLayout *mainLayout = new QVBoxLayout(centralWidget);
+
+    // Строка с настройками сервера
+    QHBoxLayout *serverLayout = new QHBoxLayout();
+    serverLayout->addWidget(new QLabel("Server IP:", this));
+    serverLayout->addWidget(ipEdit);
+    serverLayout->addWidget(new QLabel("Port:", this));
+    serverLayout->addWidget(portSpin);
+    mainLayout->addLayout(serverLayout);
+
     mainLayout->addWidget(textEdit);
 
     QHBoxLayout *buttonLayout = new QHBoxLayout();
@@ -31,8 +48,6 @@ MainWindow::MainWindow(QWidget *parent)
     connect(openButton, &QPushButton::clicked, this, &MainWindow::openFile);
     connect(clearButton, &QPushButton::clicked, this, &MainWindow::clearOutput);
     connect(tcpSocket, &QTcpSocket::readyRead, this, &MainWindow::readServerResponse);
-
-    // Исправленная строка: убрали неиспользуемый параметр error
     connect(tcpSocket, &QTcpSocket::errorOccurred, this, [this]() {
         appendToOutput("Network error: " + tcpSocket->errorString(), "red");
     });
@@ -41,13 +56,10 @@ MainWindow::MainWindow(QWidget *parent)
     appendToOutput("Нажмите 'Open File' чтобы выбрать файл и 'Run Program' чтобы начать его обработку", "cyan");
 }
 
-// Добавленная реализация метода
 void MainWindow::appendToOutput(const QString &text, const QString &color)
 {
     textEdit->append(QString("<span style='color:%1;'>%2</span>").arg(color).arg(text));
 }
-
-
 
 void MainWindow::showAbout()
 {
@@ -193,7 +205,10 @@ bool MainWindow::readExpression(std::queue<char> &expression)
 
 void MainWindow::sendToServer(const QString& expression, const std::map<std::string, double>& operands)
 {
-    tcpSocket->connectToHost("localhost", 12345);
+    QString ip = ipEdit->text();
+    quint16 port = static_cast<quint16>(portSpin->value());
+
+    tcpSocket->connectToHost(ip, port);
     if (!tcpSocket->waitForConnected(3000)) {
         appendToOutput("Could not connect to server", "red");
         return;
