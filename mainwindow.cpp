@@ -1,268 +1,162 @@
 #include "mainwindow.h"
+#include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QHostAddress>
+#include <QMessageBox>
+#include <QPixmap>
 
-MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent)
+MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 {
-    setWindowTitle("Калькулятор алгебраического выражения");
-    resize(800, 600);
-
-    // Виджеты
-    textEdit = new QTextEdit(this);
-    textEdit->setReadOnly(true);
-    runButton = new QPushButton("Run Program", this);
-    aboutButton = new QPushButton("About", this);
-    openButton = new QPushButton("Open File", this);
-    clearButton = new QPushButton("Clear Output", this);
+    setupUI();
     tcpSocket = new QTcpSocket(this);
 
-    // Добавляем поля для IP и порта
-    ipEdit = new QLineEdit("localhost", this);
-    portSpin = new QSpinBox(this);
-    portSpin->setRange(1, 65535);
-    portSpin->setValue(12345);
+    connect(tcpSocket, &QTcpSocket::readyRead, this, &MainWindow::readResponse);
+    connect(tcpSocket, &QTcpSocket::errorOccurred, this, &MainWindow::displayError);
+    connect(messageEdit, &QLineEdit::returnPressed, this, &MainWindow::handleReturnPressed);
+}
+
+MainWindow::~MainWindow()
+{
+    if(tcpSocket->state() == QAbstractSocket::ConnectedState)
+        tcpSocket->disconnectFromHost();
+}
+
+void MainWindow::setupUI()
+{
+    setWindowTitle("Client");
+    resize(600, 500);
 
     QWidget *centralWidget = new QWidget(this);
     QVBoxLayout *mainLayout = new QVBoxLayout(centralWidget);
 
-    // Строка с настройками сервера
     QHBoxLayout *serverLayout = new QHBoxLayout();
-    serverLayout->addWidget(new QLabel("Server IP:", this));
-    serverLayout->addWidget(ipEdit);
-    serverLayout->addWidget(new QLabel("Port:", this));
-    serverLayout->addWidget(portSpin);
+    serverAddressEdit = new QLineEdit("172.20.10.6", this);
+    connectButton = new QPushButton("Connect", this);
+
+    serverLayout->addWidget(serverAddressEdit);
+    serverLayout->addWidget(connectButton);
+
+    chatDisplay = new QTextEdit(this);
+    chatDisplay->setReadOnly(true);
+    chatDisplay->setText("Not connected to server");
+
+    messageEdit = new QLineEdit(this);
+    messageEdit->setPlaceholderText("Enter message (Hello, Garson, I'm Surname!)");
+    sendButton = new QPushButton("Send Message", this);
+    sendButton->setEnabled(false);
+
+    QHBoxLayout *messageLayout = new QHBoxLayout();
+    messageLayout->addWidget(messageEdit);
+    messageLayout->addWidget(sendButton);
+
+    imageLabel = new QLabel(this);
+    imageLabel->setAlignment(Qt::AlignCenter);
+    imageLabel->setMinimumSize(300, 200);
+    imageLabel->setFrameStyle(QFrame::Box);
+    imageLabel->setText("Garden image will appear here");
+    imageLabel->hide();
+
+    statusLabel = new QLabel("Status: Not connected", this);
+
     mainLayout->addLayout(serverLayout);
-
-    mainLayout->addWidget(textEdit);
-
-    QHBoxLayout *buttonLayout = new QHBoxLayout();
-    buttonLayout->addWidget(openButton);
-    buttonLayout->addWidget(runButton);
-    buttonLayout->addWidget(aboutButton);
-    buttonLayout->addWidget(clearButton);
-    mainLayout->addLayout(buttonLayout);
+    mainLayout->addWidget(chatDisplay);
+    mainLayout->addLayout(messageLayout);
+    mainLayout->addWidget(imageLabel);
+    mainLayout->addWidget(statusLabel);
 
     setCentralWidget(centralWidget);
 
-    connect(runButton, &QPushButton::clicked, this, &MainWindow::runProgram);
-    connect(aboutButton, &QPushButton::clicked, this, &MainWindow::showAbout);
-    connect(openButton, &QPushButton::clicked, this, &MainWindow::openFile);
-    connect(clearButton, &QPushButton::clicked, this, &MainWindow::clearOutput);
-    connect(tcpSocket, &QTcpSocket::readyRead, this, &MainWindow::readServerResponse);
-    connect(tcpSocket, &QTcpSocket::errorOccurred, this, [this]() {
-        appendToOutput("Network error: " + tcpSocket->errorString(), "red");
-    });
-
-    appendToOutput("Все готово к запуску", "cyan");
-    appendToOutput("Нажмите 'Open File' чтобы выбрать файл и 'Run Program' чтобы начать его обработку", "cyan");
+    connect(connectButton, &QPushButton::clicked, this, &MainWindow::connectToServer);
+    connect(sendButton, &QPushButton::clicked, this, &MainWindow::sendMessage);
 }
 
-void MainWindow::appendToOutput(const QString &text, const QString &color)
+void MainWindow::handleReturnPressed()
 {
-    textEdit->append(QString("<span style='color:%1;'>%2</span>").arg(color).arg(text));
-}
-
-void MainWindow::showAbout()
-{
-    QString aboutText = "ЭТА ПРОГРАММА ПРОВЕРЯЕТ ОШИБКИ ПРИ ЗАПИСИ ВЫРАЖЕНИЙ\n"
-                        "ИЗ ФАЙЛА, ПРЕОБРАЗУЕТ В ОБРАТНУЮ ПОЛЬСКУЮ ЗАПИСЬ,\n"
-                        "ВЫЧИСЛЯЕТ ЗНАЧЕНИЕ ВЫРАЖЕНИЯ\n\n"
-                        "Требования к формату файла:\n"
-                        "- Первая строка: выражение\n"
-                        "- Последующие строки: определения операндов (имя = значение)\n"
-                        "- Имена операндов не могут быть числами и не должны содержать '='\n\n"
-                        "Поддерживаемые операции: +, -, *, /\n"
-                        "Поддерживаемые скобки: (), [], {}";
-
-    QMessageBox::information(this, "About Program", aboutText);
-}
-
-void MainWindow::openFile()
-{
-    QString fileName = QFileDialog::getOpenFileName(this,
-                                                    "Открыть файл ввода",
-                                                    "",
-                                                    "Текстовые файлы (*.txt);;Все файлы (*.*)");
-    if (!fileName.isEmpty()) {
-        currentFile = fileName;
-        appendToOutput("Выбран файл: " + fileName, "blue");
+    if(!messageEdit->text().trimmed().isEmpty() && sendButton->isEnabled()) {
+        sendMessage();
     }
 }
 
-void MainWindow::clearOutput()
+void MainWindow::showGardenImage()
 {
-    textEdit->clear();
+    QPixmap gardenImage(":/images/garden.jpg");
+
+    if(!gardenImage.isNull()) {
+        imageLabel->setPixmap(gardenImage.scaled(imageLabel->size(),
+                                                 Qt::KeepAspectRatio,
+                                                 Qt::SmoothTransformation));
+        imageLabel->show();
+    } else {
+        imageLabel->setText("🌳🌲🌴 Garden Image Missing 🌴🌲🌳");
+        imageLabel->show();
+    }
 }
 
-void MainWindow::runProgram()
+void MainWindow::connectToServer()
 {
-    if (currentFile.isEmpty()) {
-        appendToOutput("ERROR: Файл не выбран. Нажмите 'Open File'", "red");
+    if(tcpSocket->state() == QAbstractSocket::ConnectedState)
+        tcpSocket->disconnectFromHost();
+
+    tcpSocket->connectToHost(serverAddressEdit->text(), 12345);
+
+    if(tcpSocket->waitForConnected(3000)) {
+        statusLabel->setText("Status: Connected to server");
+        sendButton->setEnabled(true);
+        appendMessage("System: Connected to server");
+    } else {
+        statusLabel->setText("Status: Connection error - " + tcpSocket->errorString());
+    }
+}
+
+void MainWindow::sendMessage()
+{
+    QString message = messageEdit->text().trimmed();
+
+    if(message.isEmpty()) {
+        QMessageBox::warning(this, "Error", "Please enter a message!");
         return;
     }
 
-    textEdit->clear();
-    appendToOutput("Обработка файла: " + currentFile, "white");
-
-    std::queue<char> expression;
-    if (!readExpression(expression)) {
-        appendToOutput("Обработка файла остановлена из-за ошибок", "red");
-        return;
-    }
-
-    QString exprStr;
-    while (!expression.empty()) {
-        exprStr += QChar(expression.front());
-        expression.pop();
-    }
-
-    std::ifstream in(currentFile.toStdString());
-    std::string line;
-    std::getline(in, line); // Пропускаем первую строку (выражение)
-
-    std::map<std::string, double> operands;
-    int lineNum = 2;
-    while (std::getline(in, line)) {
-        line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
-
-        if (line.empty())
-            continue;
-
-        size_t pos = line.find('=');
-        if (pos == std::string::npos) {
-            appendToOutput(QString("ERROR: Строка %1 - пропуск '='").arg(lineNum), "red");
-            return;
-        }
-
-        std::string name = line.substr(0, pos);
-        size_t start = name.find_first_not_of(" \t");
-        size_t end = name.find_last_not_of(" \t");
-        if (start == std::string::npos) {
-            appendToOutput(QString("ERROR: Строка %1 - отсутствует имя операнда").arg(lineNum), "red");
-            return;
-        }
-        name = name.substr(start, end - start + 1);
-
-        if (std::all_of(name.begin(), name.end(), [](char c) { return std::isdigit(c); })) {
-            appendToOutput(QString("ERROR: Строка %1 - имя операнда не может быть числом: '%2'")
-                               .arg(lineNum)
-                               .arg(QString::fromStdString(name)), "red");
-            return;
-        }
-
-        std::string valueStr = line.substr(pos + 1);
-        start = valueStr.find_first_not_of(" \t");
-        if (start == std::string::npos) {
-            appendToOutput(QString("ERROR: Строка %1 - пропущено значение операнда").arg(lineNum), "red");
-            return;
-        }
-        valueStr = valueStr.substr(start);
-
-        std::replace(valueStr.begin(), valueStr.end(), ',', '.');
-
-        try {
-            double value = std::stod(valueStr);
-            operands[name] = value;
-            appendToOutput(QString("Операнд: %1 = %2").arg(QString::fromStdString(name)).arg(value), "blue");
-        } catch (const std::exception &) {
-            appendToOutput(QString("ERROR: Строка %1 - некорректное значение: '%2'")
-                               .arg(lineNum)
-                               .arg(QString::fromStdString(valueStr)), "red");
-            return;
-        }
-
-        lineNum++;
-    }
-
-    sendToServer(exprStr, operands);
-}
-
-bool MainWindow::readExpression(std::queue<char> &expression)
-{
-    appendToOutput("\nЧтение выражения из файла...", "cyan");
-
-    std::ifstream in(currentFile.toStdString());
-    if (!in.is_open()) {
-        appendToOutput("ERROR: Файл не открыт", "red");
-        return false;
-    }
-
-    std::string line;
-    if (!std::getline(in, line)) {
-        appendToOutput("ERROR: Файл пуст", "red");
-        return false;
-    }
-
-    line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
-
-    for (char c : line) {
-        expression.push(c);
-    }
-
-    appendToOutput("Выражение успешно прочитано:", "cyan");
-    appendToOutput(QString::fromStdString(line), "white");
-    return true;
-}
-
-void MainWindow::sendToServer(const QString& expression, const std::map<std::string, double>& operands)
-{
-    QString ip = ipEdit->text();
-    quint16 port = static_cast<quint16>(portSpin->value());
-
-    tcpSocket->connectToHost(ip, port);
-    if (!tcpSocket->waitForConnected(3000)) {
-        appendToOutput("Could not connect to server", "red");
-        return;
-    }
-
-    QByteArray data;
-    QDataStream out(&data, QIODevice::WriteOnly);
+    QByteArray block;
+    QDataStream out(&block, QIODevice::WriteOnly);
     out.setVersion(QDataStream::Qt_6_0);
+    out << message;
 
-    out << quint32(0); // Placeholder for size
-
-    out << expression;
-    out << static_cast<int>(operands.size());
-
-    for (const auto& [name, value] : operands) {
-        out << QString::fromStdString(name) << value;
-    }
-
-    out.device()->seek(0);
-    out << quint32(data.size() - sizeof(quint32));
-
-    tcpSocket->write(data);
-    appendToOutput("Expression sent to server", "blue");
+    tcpSocket->write(block);
+    appendMessage("You: " + message);
+    messageEdit->clear();
 }
 
-void MainWindow::readServerResponse()
+void MainWindow::readResponse()
 {
     QDataStream in(tcpSocket);
     in.setVersion(QDataStream::Qt_6_0);
 
-    quint32 status;
-    in >> status;
+    QString response;
+    in >> response;
 
-    if (status == 0) {
-        double result;
-        in >> result;
-        QString resultStr = formatDouble(result);
-        appendToOutput("\nРезультат: " + resultStr, "white");
+    if(response.contains("Go To Sleep To the Garden!")) {
+        appendMessage("Server: " + response);
+        statusLabel->setText("Status: Correct message format");
+        showGardenImage();
     } else {
-        QString errorMsg;
-        in >> errorMsg;
-        appendToOutput("Server error: " + errorMsg, "red");
+        appendMessage("Server: " + response);
+        statusLabel->setText("Status: Incorrect message format");
+        imageLabel->hide();
     }
-
-    tcpSocket->disconnectFromHost();
 }
 
-QString MainWindow::formatDouble(double value)
+void MainWindow::appendMessage(const QString &message)
 {
-    QString result = QString::number(value, 'g', 10);
-    result.replace('.', ',');
+    chatDisplay->append(message);
+}
 
-    if (result.contains(',') && result.split(',')[1].toDouble() == 0) {
-        result = result.split(',')[0];
-    }
-    return result;
+void MainWindow::displayError(QAbstractSocket::SocketError socketError)
+{
+    Q_UNUSED(socketError);
+    QString error = "Network error: " + tcpSocket->errorString();
+    statusLabel->setText("Status: " + error);
+    appendMessage("System: " + error);
+    sendButton->setEnabled(false);
+    imageLabel->hide();
 }

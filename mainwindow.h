@@ -2,51 +2,45 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <QTextEdit>
-#include <QPushButton>
 #include <QTcpSocket>
-#include <QFileDialog>
-#include <QMessageBox>
-#include <QHBoxLayout>
-#include <QVBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
-#include <QSpinBox>
-#include <fstream>
-#include <queue>
-#include <map>
-#include <algorithm>
-#include <cctype>
+#include <QPushButton>
+#include <QTextEdit>
+#include <QFileDialog>
+#include <QRegularExpression>
 
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
 
 public:
-    explicit MainWindow(QWidget *parent = nullptr);
+    MainWindow(QWidget *parent = nullptr);
+    ~MainWindow();
 
 private slots:
-    void runProgram();
-    void showAbout();
-    void openFile();
-    void clearOutput();
-    void readServerResponse();
+    void connectToServer();
+    void sendMessage();
+    void readResponse();
+    void displayError(QAbstractSocket::SocketError socketError);
+    void handleReturnPressed();
 
 private:
-    bool readExpression(std::queue<char> &expression);
-    void sendToServer(const QString& expression, const std::map<std::string, double>& operands);
-    QString formatDouble(double value);
-    void appendToOutput(const QString &text, const QString &color = "black");
+    void setupUI();
+    void appendMessage(const QString &message);
+    void showGardenImage();
 
-    QTextEdit *textEdit;
-    QPushButton *runButton;
-    QPushButton *aboutButton;
-    QPushButton *openButton;
-    QPushButton *clearButton;
-    QLineEdit *ipEdit;       // Поле для ввода IP
-    QSpinBox *portSpin;      // Поле для ввода порта
     QTcpSocket *tcpSocket;
-    QString currentFile;
+    QLabel *statusLabel;
+    QTextEdit *chatDisplay;
+    QLineEdit *messageEdit;
+    QLineEdit *serverAddressEdit;
+    QPushButton *connectButton;
+    QPushButton *sendButton;
+    QPushButton *selectFileButton;
+    QPushButton *sendFileButton;
+    QString currentFilePath;
+    QLabel *imageLabel;
 };
 
 #endif // MAINWINDOW_H

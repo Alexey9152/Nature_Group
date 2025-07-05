@@ -39,12 +39,14 @@ struct qt_meta_tag_ZN10MainWindowE_t {};
 #ifdef QT_MOC_HAS_STRINGDATA
 static constexpr auto qt_meta_stringdata_ZN10MainWindowE = QtMocHelpers::stringData(
     "MainWindow",
-    "runProgram",
+    "connectToServer",
     "",
-    "showAbout",
-    "openFile",
-    "clearOutput",
-    "readServerResponse"
+    "sendMessage",
+    "readResponse",
+    "displayError",
+    "QAbstractSocket::SocketError",
+    "socketError",
+    "handleReturnPressed"
 );
 #else  // !QT_MOC_HAS_STRINGDATA
 #error "qtmochelpers.h not found or too old."
@@ -67,14 +69,14 @@ Q_CONSTINIT static const uint qt_meta_data_ZN10MainWindowE[] = {
        1,    0,   44,    2, 0x08,    1 /* Private */,
        3,    0,   45,    2, 0x08,    2 /* Private */,
        4,    0,   46,    2, 0x08,    3 /* Private */,
-       5,    0,   47,    2, 0x08,    4 /* Private */,
-       6,    0,   48,    2, 0x08,    5 /* Private */,
+       5,    1,   47,    2, 0x08,    4 /* Private */,
+       8,    0,   50,    2, 0x08,    6 /* Private */,
 
  // slots: parameters
     QMetaType::Void,
     QMetaType::Void,
     QMetaType::Void,
-    QMetaType::Void,
+    QMetaType::Void, 0x80000000 | 6,    7,
     QMetaType::Void,
 
        0        // eod
@@ -89,15 +91,16 @@ Q_CONSTINIT const QMetaObject MainWindow::staticMetaObject = { {
     qt_incomplete_metaTypeArray<qt_meta_tag_ZN10MainWindowE_t,
         // Q_OBJECT / Q_GADGET
         QtPrivate::TypeAndForceComplete<MainWindow, std::true_type>,
-        // method 'runProgram'
+        // method 'connectToServer'
         QtPrivate::TypeAndForceComplete<void, std::false_type>,
-        // method 'showAbout'
+        // method 'sendMessage'
         QtPrivate::TypeAndForceComplete<void, std::false_type>,
-        // method 'openFile'
+        // method 'readResponse'
         QtPrivate::TypeAndForceComplete<void, std::false_type>,
-        // method 'clearOutput'
+        // method 'displayError'
         QtPrivate::TypeAndForceComplete<void, std::false_type>,
-        // method 'readServerResponse'
+        QtPrivate::TypeAndForceComplete<QAbstractSocket::SocketError, std::false_type>,
+        // method 'handleReturnPressed'
         QtPrivate::TypeAndForceComplete<void, std::false_type>
     >,
     nullptr
@@ -108,15 +111,26 @@ void MainWindow::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, 
     auto *_t = static_cast<MainWindow *>(_o);
     if (_c == QMetaObject::InvokeMetaMethod) {
         switch (_id) {
-        case 0: _t->runProgram(); break;
-        case 1: _t->showAbout(); break;
-        case 2: _t->openFile(); break;
-        case 3: _t->clearOutput(); break;
-        case 4: _t->readServerResponse(); break;
+        case 0: _t->connectToServer(); break;
+        case 1: _t->sendMessage(); break;
+        case 2: _t->readResponse(); break;
+        case 3: _t->displayError((*reinterpret_cast< std::add_pointer_t<QAbstractSocket::SocketError>>(_a[1]))); break;
+        case 4: _t->handleReturnPressed(); break;
         default: ;
         }
     }
-    (void)_a;
+    if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
+        switch (_id) {
+        default: *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType(); break;
+        case 3:
+            switch (*reinterpret_cast<int*>(_a[1])) {
+            default: *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType(); break;
+            case 0:
+                *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType::fromType< QAbstractSocket::SocketError >(); break;
+            }
+            break;
+        }
+    }
 }
 
 const QMetaObject *MainWindow::metaObject() const
@@ -144,7 +158,7 @@ int MainWindow::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     }
     if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
         if (_id < 5)
-            *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
+            qt_static_metacall(this, _c, _id, _a);
         _id -= 5;
     }
     return _id;
