@@ -10,6 +10,8 @@
 #include <QFileDialog>
 #include <QRegularExpression>
 
+#include <QCache>
+
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -41,6 +43,11 @@ private:
     QPushButton *sendFileButton;
     QString currentFilePath;
     QLabel *imageLabel;
+
+
+    QString currentSurname;
+    void showStudentInGarden(const QString &surname);
+
 };
 
 #endif // MAINWINDOW_H

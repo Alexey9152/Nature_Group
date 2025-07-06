@@ -1,5 +1,31 @@
 <RCC>
     <qresource prefix="/images">
         <file>garden.jpg</file>
+        <file>Karpovich.jpg</file>
+        <file>Batrameev.jpg</file>
+        <file>Hanin.jpg</file>
+        <file>Isaev.jpg</file>
+        <file>Lipovskiy.jpg</file>
+        <file>Los.jpg</file>
+        <file>Maslenchenko.jpg</file>
+        <file>Ozhigin.jpg</file>
+        <file>Panov.jpg</file>
+        <file>Sakovich.jpg</file>
+        <file>Starovoytov.jpg</file>
+        <file>Trofimov.jpg</file>
+        <file>Voronina.jpg</file>
+        <file>Yarosh.jpg</file>
+        <file>Adamovich.jpg</file>
+        <file>Batura.jpg</file>
+        <file>Derkach.jpg</file>
+        <file>Ilyin.jpg</file>
+        <file>Krasikov.jpg</file>
+        <file>Lachinov.jpg</file>
+        <file>Lezhnev.jpg</file>
+        <file>Marcinkevich.jpg</file>
+        <file>Sokolovskiy.jpg</file>
+        <file>Vdovin.jpg</file>
+        <file>Yasinskiy.jpg</file>
+        <file>Zhavner.jpg</file>
     </qresource>
 </RCC>

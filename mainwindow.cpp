@@ -4,7 +4,8 @@
 #include <QHostAddress>
 #include <QMessageBox>
 #include <QPixmap>
-
+#include <QPainter>
+#include <QPainterPath>
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 {
     setupUI();
@@ -117,6 +118,13 @@ void MainWindow::sendMessage()
         return;
     }
 
+    // Сохраняем имя из сообщения
+    QRegularExpression rx("Hello, Garson, I'm (\\w+)!");
+    QRegularExpressionMatch match = rx.match(message);
+    if (match.hasMatch()) {
+        currentSurname = match.captured(1);
+    }
+
     QByteArray block;
     QDataStream out(&block, QIODevice::WriteOnly);
     out.setVersion(QDataStream::Qt_6_0);
@@ -138,12 +146,51 @@ void MainWindow::readResponse()
     if(response.contains("Go To Sleep To the Garden!")) {
         appendMessage("Server: " + response);
         statusLabel->setText("Status: Correct message format");
-        showGardenImage();
+        showStudentInGarden(currentSurname); // Используем сохраненное имя
     } else {
         appendMessage("Server: " + response);
         statusLabel->setText("Status: Incorrect message format");
         imageLabel->hide();
     }
+}
+void MainWindow::showStudentInGarden(const QString &surname) {
+    // 1. Загружаем фон сада
+    QPixmap gardenImage(":/images/garden.jpg");
+    if (gardenImage.isNull()) {
+        qDebug() << "Ошибка: garden.jpg не загружен!";
+        gardenImage = QPixmap(300, 200);
+        gardenImage.fill(Qt::green);
+    }
+
+    // 2. Загружаем фото студента
+    QString studentPath = ":/images/" + surname + ".jpg";
+    QPixmap studentImage(studentPath);
+
+    if (studentImage.isNull()) {
+        qDebug() << "Ошибка: фото студента не загружено! Путь:" << studentPath;
+        studentImage = QPixmap(100, 100);
+        studentImage.fill(Qt::blue);
+        QPainter painter(&studentImage);
+        painter.drawText(studentImage.rect(), Qt::AlignCenter, surname);
+    }
+
+    // 3. Создаем результирующее изображение
+    QPixmap resultImage = gardenImage.scaled(300, 200, Qt::KeepAspectRatioByExpanding);
+    QPainter painter(&resultImage);
+
+    // 4. Размещаем фото студента
+    int studentWidth = 200;
+    int studentHeight = 200;
+    int x = (resultImage.width() - studentWidth) / 2;
+    int y = (resultImage.height() - studentHeight) / 2 + 40;
+
+    QRect studentRect(x, y, studentWidth, studentHeight);
+    painter.drawPixmap(studentRect, studentImage.scaled(studentWidth, studentHeight));
+
+    // 5. Отображаем результат
+    imageLabel->setPixmap(resultImage);
+    imageLabel->show();
+
 }
 
 void MainWindow::appendMessage(const QString &message)
