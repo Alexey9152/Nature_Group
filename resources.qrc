@@ -1,0 +1,20 @@
+<RCC>
+    <qresource prefix="/">
+ 
+        <file>Los.jpg</file>
+        <file>Lipovskiy.jpg</file> 
+        <file>Voronina.jpg</file>
+        <file>Karpovich.jpg</file>
+        <file>Yarosh.jpg</file>
+	<file>Batrameev.jpg</file>
+	<file>Maslenchenko.jpg</file>
+	<file>Ozhigin.jpg</file>
+	<file>Panov.jpg</file>
+	<file>Sakovich.jpg</file>
+	<file>Starovoytov.jpg</file>
+	<file>Trofimov.jpg</file>
+	<file>Hanin.jpg</file>
+	<file>Isaev.jpg</file>
+	       
+    </qresource>
+</RCC>
