@@ -1,12 +1,58 @@
 #include "mainwindow.h"
+#include <QMenuBar>
+#include <QMenu>
+#include <QAction>
+#include <QTableWidget>
+#include <QHeaderView>
+#include <QDialogButtonBox>
+#include <QVBoxLayout>
+#include <QElapsedTimer>
+#include <stack>
 
-MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent)
+HistoryDialog::HistoryDialog(const QList<MainWindow::HistoryRecord> &records, QWidget *parent)
+    : QDialog(parent), records(records)
+{
+    setWindowTitle("История вычислений");
+    resize(800, 600);
+
+    table = new QTableWidget(this);
+    table->setColumnCount(6);
+    table->setHorizontalHeaderLabels({"Дата", "Тип", "Выражение", "ОПЗ", "Результат", "Время (мс)"});
+    table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+
+    QDialogButtonBox *buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok, this);
+    connect(buttonBox, &QDialogButtonBox::accepted, this, &QDialog::accept);
+
+    QVBoxLayout *layout = new QVBoxLayout(this);
+    layout->addWidget(table);
+    layout->addWidget(buttonBox);
+
+    populateTable();
+}
+
+void HistoryDialog::populateTable()
+{
+    table->setRowCount(records.size());
+    for (int i = 0; i < records.size(); ++i) {
+        const auto &record = records[i];
+        std::ostringstream dateStream;
+        dateStream << record.date;
+        QString date = QString::fromStdString(dateStream.str());
+
+        table->setItem(i, 0, new QTableWidgetItem(date));
+        table->setItem(i, 1, new QTableWidgetItem(record.type));
+        table->setItem(i, 2, new QTableWidgetItem(record.expression));
+        table->setItem(i, 3, new QTableWidgetItem(record.rpn));
+        table->setItem(i, 4, new QTableWidgetItem(record.result));
+        table->setItem(i, 5, new QTableWidgetItem(QString::number(record.processingTime)));
+    }
+}
+
+MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 {
     setWindowTitle("Калькулятор алгебраического выражения");
     resize(800, 600);
 
-    // Виджеты
     textEdit = new QTextEdit(this);
     textEdit->setReadOnly(true);
     runButton = new QPushButton("Run Program", this);
@@ -15,17 +61,15 @@ MainWindow::MainWindow(QWidget *parent)
     clearButton = new QPushButton("Clear Output", this);
     tcpSocket = new QTcpSocket(this);
 
-    // Добавляем поля для IP и порта
     ipEdit = new QLineEdit("localhost", this);
     portSpin = new QSpinBox(this);
     portSpin->setRange(1, 65535);
     portSpin->setValue(12345);
 
-    QWidget *centralWidget = new QWidget(this);
-    QVBoxLayout *mainLayout = new QVBoxLayout(centralWidget);
+    QWidget* centralWidget = new QWidget(this);
+    QVBoxLayout* mainLayout = new QVBoxLayout(centralWidget);
 
-    // Строка с настройками сервера
-    QHBoxLayout *serverLayout = new QHBoxLayout();
+    QHBoxLayout* serverLayout = new QHBoxLayout();
     serverLayout->addWidget(new QLabel("Server IP:", this));
     serverLayout->addWidget(ipEdit);
     serverLayout->addWidget(new QLabel("Port:", this));
@@ -34,7 +78,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     mainLayout->addWidget(textEdit);
 
-    QHBoxLayout *buttonLayout = new QHBoxLayout();
+    QHBoxLayout* buttonLayout = new QHBoxLayout();
     buttonLayout->addWidget(openButton);
     buttonLayout->addWidget(runButton);
     buttonLayout->addWidget(aboutButton);
@@ -51,37 +95,54 @@ MainWindow::MainWindow(QWidget *parent)
     connect(tcpSocket, &QTcpSocket::errorOccurred, this, [this]() {
         appendToOutput("Network error: " + tcpSocket->errorString(), "red");
     });
+    connect(tcpSocket, &QTcpSocket::connected, this, [this]() {
+        appendToOutput("Connected to server.", "green");
+    });
+    connect(tcpSocket, &QTcpSocket::disconnected, this, [this]() {
+        appendToOutput("Disconnected from server.", "orange");
+    });
+
+    QMenu *historyMenu = menuBar()->addMenu("История");
+    QAction *showHistoryAction = historyMenu->addAction("Показать историю");
+    QAction *saveHistoryAction = historyMenu->addAction("Сохранить историю");
+    QAction *serverHistoryAction = historyMenu->addAction("История сервера");
+
+    QMenu *sortMenu = menuBar()->addMenu("Сортировка");
+    QAction *sortByDateAction = sortMenu->addAction("По дате");
+    QAction *sortByTypeAction = sortMenu->addAction("По типу запроса");
+    QAction *sortByLengthAction = sortMenu->addAction("По длине выражения");
+    QAction *sortByTimeAction = sortMenu->addAction("По времени обработки");
+
+    connect(showHistoryAction, &QAction::triggered, this, &MainWindow::showHistory);
+    connect(saveHistoryAction, &QAction::triggered, this, &MainWindow::saveHistory);
+    connect(serverHistoryAction, &QAction::triggered, this, &MainWindow::showServerHistory);
+    connect(sortByDateAction, &QAction::triggered, this, &MainWindow::sortHistoryByDate);
+    connect(sortByTypeAction, &QAction::triggered, this, &MainWindow::sortHistoryByType);
+    connect(sortByLengthAction, &QAction::triggered, this, &MainWindow::sortHistoryByLength);
+    connect(sortByTimeAction, &QAction::triggered, this, &MainWindow::sortHistoryByTime);
 
     appendToOutput("Все готово к запуску", "cyan");
     appendToOutput("Нажмите 'Open File' чтобы выбрать файл и 'Run Program' чтобы начать его обработку", "cyan");
 }
 
-void MainWindow::appendToOutput(const QString &text, const QString &color)
+MainWindow::~MainWindow()
+{
+    delete historyDialog;
+}
+
+void MainWindow::appendToOutput(const QString& text, const QString& color)
 {
     textEdit->append(QString("<span style='color:%1;'>%2</span>").arg(color).arg(text));
 }
 
 void MainWindow::showAbout()
 {
-    QString aboutText = "ЭТА ПРОГРАММА ПРОВЕРЯЕТ ОШИБКИ ПРИ ЗАПИСИ ВЫРАЖЕНИЙ\n"
-                        "ИЗ ФАЙЛА, ПРЕОБРАЗУЕТ В ОБРАТНУЮ ПОЛЬСКУЮ ЗАПИСЬ,\n"
-                        "ВЫЧИСЛЯЕТ ЗНАЧЕНИЕ ВЫРАЖЕНИЯ\n\n"
-                        "Требования к формату файла:\n"
-                        "- Первая строка: выражение\n"
-                        "- Последующие строки: определения операндов (имя = значение)\n"
-                        "- Имена операндов не могут быть числами и не должны содержать '='\n\n"
-                        "Поддерживаемые операции: +, -, *, /\n"
-                        "Поддерживаемые скобки: (), [], {}";
-
-    QMessageBox::information(this, "About Program", aboutText);
+    QMessageBox::about(this, "About", "Calculator Application");
 }
 
 void MainWindow::openFile()
 {
-    QString fileName = QFileDialog::getOpenFileName(this,
-                                                    "Открыть файл ввода",
-                                                    "",
-                                                    "Текстовые файлы (*.txt);;Все файлы (*.*)");
+    QString fileName = QFileDialog::getOpenFileName(this, "Open File");
     if (!fileName.isEmpty()) {
         currentFile = fileName;
         appendToOutput("Выбран файл: " + fileName, "blue");
@@ -103,107 +164,76 @@ void MainWindow::runProgram()
     textEdit->clear();
     appendToOutput("Обработка файла: " + currentFile, "white");
 
-    std::queue<char> expression;
-    if (!readExpression(expression)) {
+    currentExpression.clear();
+    currentOperands.clear();
+
+    if (!readExpressionAndOperands(currentExpression, currentOperands)) {
         appendToOutput("Обработка файла остановлена из-за ошибок", "red");
         return;
     }
 
-    QString exprStr;
-    while (!expression.empty()) {
-        exprStr += QChar(expression.front());
-        expression.pop();
+    appendToOutput("Выражение: " + currentExpression, "blue");
+    for (const auto& [name, value] : currentOperands) {
+        appendToOutput(QString("Операнд: %1 = %2").arg(QString::fromStdString(name)).arg(value), "blue");
     }
 
-    std::ifstream in(currentFile.toStdString());
-    std::string line;
-    std::getline(in, line); // Пропускаем первую строку (выражение)
+    if (!convertToRPNClient(currentExpression, currentClientRPN)) {
+        appendToOutput("ERROR: Ошибка при построении ОПЗ на клиенте.", "red");
+        return;
+    }
+    appendToOutput("ОПЗ, сгенерированная клиентом: " + currentClientRPN, "blue");
 
-    std::map<std::string, double> operands;
+    requestTimer.start();
+    sendExpressionAndRPNToServer(currentExpression, currentClientRPN);
+}
+
+bool MainWindow::readExpressionAndOperands(QString &expression, std::map<std::string, double> &operands)
+{
+    QFile file(currentFile);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        appendToOutput("ERROR: Не удалось открыть файл", "red");
+        return false;
+    }
+
+    QTextStream in(&file);
+    expression = in.readLine();
+
     int lineNum = 2;
-    while (std::getline(in, line)) {
-        line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
+    while (!in.atEnd()) {
+        QString line = in.readLine().trimmed();
+        if (line.isEmpty()) continue;
 
-        if (line.empty())
-            continue;
-
-        size_t pos = line.find('=');
-        if (pos == std::string::npos) {
+        QStringList parts = line.split('=');
+        if (parts.size() != 2) {
             appendToOutput(QString("ERROR: Строка %1 - пропуск '='").arg(lineNum), "red");
-            return;
+            return false;
         }
 
-        std::string name = line.substr(0, pos);
-        size_t start = name.find_first_not_of(" \t");
-        size_t end = name.find_last_not_of(" \t");
-        if (start == std::string::npos) {
+        QString name = parts[0].trimmed();
+        QString valueStr = parts[1].trimmed();
+
+        if (name.isEmpty()) {
             appendToOutput(QString("ERROR: Строка %1 - отсутствует имя операнда").arg(lineNum), "red");
-            return;
-        }
-        name = name.substr(start, end - start + 1);
-
-        if (std::all_of(name.begin(), name.end(), [](char c) { return std::isdigit(c); })) {
-            appendToOutput(QString("ERROR: Строка %1 - имя операнда не может быть числом: '%2'")
-                               .arg(lineNum)
-                               .arg(QString::fromStdString(name)), "red");
-            return;
+            return false;
         }
 
-        std::string valueStr = line.substr(pos + 1);
-        start = valueStr.find_first_not_of(" \t");
-        if (start == std::string::npos) {
-            appendToOutput(QString("ERROR: Строка %1 - пропущено значение операнда").arg(lineNum), "red");
-            return;
-        }
-        valueStr = valueStr.substr(start);
-
-        std::replace(valueStr.begin(), valueStr.end(), ',', '.');
-
-        try {
-            double value = std::stod(valueStr);
-            operands[name] = value;
-            appendToOutput(QString("Операнд: %1 = %2").arg(QString::fromStdString(name)).arg(value), "blue");
-        } catch (const std::exception &) {
+        bool ok;
+        double value = valueStr.toDouble(&ok);
+        if (!ok) {
             appendToOutput(QString("ERROR: Строка %1 - некорректное значение: '%2'")
-                               .arg(lineNum)
-                               .arg(QString::fromStdString(valueStr)), "red");
-            return;
+                               .arg(lineNum).arg(valueStr), "red");
+            return false;
         }
 
+        operands[name.toStdString()] = value;
         lineNum++;
     }
 
-    sendToServer(exprStr, operands);
-}
-
-bool MainWindow::readExpression(std::queue<char> &expression)
-{
-    appendToOutput("\nЧтение выражения из файла...", "cyan");
-
-    std::ifstream in(currentFile.toStdString());
-    if (!in.is_open()) {
-        appendToOutput("ERROR: Файл не открыт", "red");
-        return false;
-    }
-
-    std::string line;
-    if (!std::getline(in, line)) {
-        appendToOutput("ERROR: Файл пуст", "red");
-        return false;
-    }
-
-    line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
-
-    for (char c : line) {
-        expression.push(c);
-    }
-
-    appendToOutput("Выражение успешно прочитано:", "cyan");
-    appendToOutput(QString::fromStdString(line), "white");
+    file.close();
     return true;
 }
 
-void MainWindow::sendToServer(const QString& expression, const std::map<std::string, double>& operands)
+void MainWindow::sendExpressionAndRPNToServer(const QString& expression, const QString& rpn)
 {
     QString ip = ipEdit->text();
     quint16 port = static_cast<quint16>(portSpin->value());
@@ -214,24 +244,15 @@ void MainWindow::sendToServer(const QString& expression, const std::map<std::str
         return;
     }
 
-    QByteArray data;
-    QDataStream out(&data, QIODevice::WriteOnly);
+    QByteArray block;
+    QDataStream out(&block, QIODevice::WriteOnly);
     out.setVersion(QDataStream::Qt_6_0);
-
-    out << quint32(0); // Placeholder for size
-
-    out << expression;
-    out << static_cast<int>(operands.size());
-
-    for (const auto& [name, value] : operands) {
-        out << QString::fromStdString(name) << value;
-    }
-
+    out << quint16(0) << expression << rpn;
     out.device()->seek(0);
-    out << quint32(data.size() - sizeof(quint32));
+    out << quint16(block.size() - sizeof(quint16));
 
-    tcpSocket->write(data);
-    appendToOutput("Expression sent to server", "blue");
+    tcpSocket->write(block);
+    appendToOutput("Отправлено выражение и ОПЗ на сервер.", "blue");
 }
 
 void MainWindow::readServerResponse()
@@ -239,30 +260,215 @@ void MainWindow::readServerResponse()
     QDataStream in(tcpSocket);
     in.setVersion(QDataStream::Qt_6_0);
 
-    quint32 status;
-    in >> status;
+    if (tcpSocket->bytesAvailable() < sizeof(quint16))
+        return;
 
-    if (status == 0) {
-        double result;
-        in >> result;
-        QString resultStr = formatDouble(result);
-        appendToOutput("\nРезультат: " + resultStr, "white");
-    } else {
-        QString errorMsg;
-        in >> errorMsg;
-        appendToOutput("Server error: " + errorMsg, "red");
-    }
+    quint16 blockSize;
+    in >> blockSize;
 
-    tcpSocket->disconnectFromHost();
+    if (tcpSocket->bytesAvailable() < blockSize)
+        return;
+
+    QString response;
+    in >> response;
+
+    qint64 elapsed = requestTimer.elapsed();
+    addHistoryRecord("Ответ сервера", currentExpression, currentClientRPN, response, elapsed);
+    appendToOutput("Ответ сервера: " + response, "green");
 }
 
-QString MainWindow::formatDouble(double value)
+void MainWindow::addHistoryRecord(const QString &type, const QString &expression,
+                                  const QString &rpn, const QString &result, qint64 time)
 {
-    QString result = QString::number(value, 'g', 10);
-    result.replace('.', ',');
+    HistoryRecord record;
+    QDateTime now = QDateTime::currentDateTime();
+    record.date = Date(now.date().day(), now.date().month(), now.date().year(),
+                       now.time().hour(), now.time().minute(), now.time().second());
+    record.type = type;
+    record.expression = expression;
+    record.rpn = rpn;
+    record.result = result;
+    record.processingTime = time;
+    historyRecords.append(record);
+}
 
-    if (result.contains(',') && result.split(',')[1].toDouble() == 0) {
-        result = result.split(',')[0];
+int MainWindow::getPrecedence(char op) {
+    switch (op) {
+    case '^': return 4;
+    case '*':
+    case '/': return 3;
+    case '+':
+    case '-': return 2;
+    default: return 0;
     }
-    return result;
+}
+
+bool MainWindow::isOperator(char c) {
+    return c == '+' || c == '-' || c == '*' || c == '/' || c == '^';
+}
+
+bool MainWindow::convertToRPNClient(const QString& expression, QString& rpn)
+{
+    std::stack<char> opStack;
+    std::string output;
+    std::string expr = expression.toStdString();
+
+    for (size_t i = 0; i < expr.length(); ++i) {
+        char c = expr[i];
+
+        // Пропускаем пробелы
+        if (c == ' ') continue;
+
+        // Обработка чисел (целых и с плавающей точкой)
+        if (isdigit(c) || c == '.') {
+            while (i < expr.length() && (isdigit(expr[i]) || expr[i] == '.')) {
+                output += expr[i++];
+            }
+            output += ' ';
+            i--;
+            continue;
+        }
+
+        // Обработка переменных (идентификаторов)
+        if (isalpha(c)) {
+            while (i < expr.length() && isalnum(expr[i])) {
+                output += expr[i++];
+            }
+            output += ' ';
+            i--;
+            continue;
+        }
+
+        // Обработка открывающих скобок
+        if (c == '(' || c == '[' || c == '{') {
+            opStack.push(c);
+            continue;
+        }
+
+        // Обработка закрывающих скобок
+        if (c == ')' || c == ']' || c == '}') {
+            char matchingBracket;
+            switch (c) {
+            case ')': matchingBracket = '('; break;
+            case ']': matchingBracket = '['; break;
+            case '}': matchingBracket = '{'; break;
+            }
+
+            while (!opStack.empty() && opStack.top() != matchingBracket) {
+                output += opStack.top();
+                output += ' ';
+                opStack.pop();
+            }
+
+            if (opStack.empty()) {
+                appendToOutput("Ошибка: Несоответствующие скобки", "red");
+                return false;
+            }
+
+            opStack.pop(); // Удаляем соответствующую открывающую скобку
+            continue;
+        }
+
+        // Обработка операторов
+        if (isOperator(c)) {
+            while (!opStack.empty() &&
+                   opStack.top() != '(' && opStack.top() != '[' && opStack.top() != '{' &&
+                   getPrecedence(opStack.top()) >= getPrecedence(c)) {
+                output += opStack.top();
+                output += ' ';
+                opStack.pop();
+            }
+            opStack.push(c);
+            continue;
+        }
+
+        // Если дошли сюда - недопустимый символ
+        appendToOutput(QString("Ошибка: Недопустимый символ '%1'").arg(c), "red");
+        return false;
+    }
+
+    // Выталкиваем оставшиеся операторы из стека
+    while (!opStack.empty()) {
+        if (opStack.top() == '(' || opStack.top() == '[' || opStack.top() == '{') {
+            appendToOutput("Ошибка: Несоответствующие скобки", "red");
+            return false;
+        }
+        output += opStack.top();
+        output += ' ';
+        opStack.pop();
+    }
+
+    rpn = QString::fromStdString(output).trimmed();
+    return true;
+}
+
+void MainWindow::showHistory()
+{
+    historyDialog = new HistoryDialog(historyRecords, this);
+    historyDialog->exec();
+}
+
+void MainWindow::saveHistory()
+{
+    QString fileName = QFileDialog::getSaveFileName(this, "Сохранить историю", "", "Текстовые файлы (*.txt)");
+    if (fileName.isEmpty()) return;
+
+    QFile file(fileName);
+    if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QTextStream out(&file);
+        out << "Дата\tТип\tВыражение\tОПЗ\tРезультат\tВремя (мс)\n";
+        for (const auto &record : historyRecords) {
+            std::ostringstream dateStream;
+            dateStream << record.date;
+            out << QString::fromStdString(dateStream.str()) << "\t"
+                << record.type << "\t"
+                << record.expression << "\t"
+                << record.rpn << "\t"
+                << record.result << "\t"
+                << record.processingTime << "\n";
+        }
+        file.close();
+    }
+}
+
+void MainWindow::showServerHistory()
+{
+    QMessageBox::information(this, "История сервера",
+                             "История сервера будет отображена здесь.");
+}
+
+void MainWindow::sortHistoryByDate()
+{
+    std::sort(historyRecords.begin(), historyRecords.end(),
+              [](const HistoryRecord &a, const HistoryRecord &b) {
+                  return a.date > b.date;
+              });
+    showHistory();
+}
+
+void MainWindow::sortHistoryByType()
+{
+    std::sort(historyRecords.begin(), historyRecords.end(),
+              [](const HistoryRecord &a, const HistoryRecord &b) {
+                  return a.type < b.type;
+              });
+    showHistory();
+}
+
+void MainWindow::sortHistoryByLength()
+{
+    std::sort(historyRecords.begin(), historyRecords.end(),
+              [](const HistoryRecord &a, const HistoryRecord &b) {
+                  return a.expression.length() > b.expression.length();
+              });
+    showHistory();
+}
+
+void MainWindow::sortHistoryByTime()
+{
+    std::sort(historyRecords.begin(), historyRecords.end(),
+              [](const HistoryRecord &a, const HistoryRecord &b) {
+                  return a.processingTime > b.processingTime;
+              });
+    showHistory();
 }
