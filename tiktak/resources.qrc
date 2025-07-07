@@ -1,0 +1,7 @@
+<RCC>
+    <qresource prefix="/sounds">
+        <file>strike.wav</file>
+        <file>cuckoo.wav</file>
+        <file>tick.wav</file>
+    </qresource>
+</RCC>

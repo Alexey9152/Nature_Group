@@ -1,0 +1,54 @@
+# Qt project files
+*.pro.user
+*.pro.user.*
+*.user
+
+# Build directories
+build*/
+build-*/
+*/build*/
+*/build-*/
+Debug/
+Release/
+x64/
+x86/
+*.build/
+
+# Qt Creator files
+.qtc_clangd/
+.qtc_clangd/*
+.cache/
+.config/
+.autotools/
+.project
+.cproject
+.settings/
+
+# macOS
+*.app
+*.app.dSYM
+.DS_Store
+
+# Windows
+*.exe
+*.dll
+*.obj
+*.pch
+*.lib
+
+# Autosave and backup files
+*~
+*.autosave
+*.bak
+*.tmp
+
+# Generated files by Qt
+moc_*
+ui_*
+qrc_*
+*.moc
+*.o
+*.obj
+
+# Other
+Thumbs.db
