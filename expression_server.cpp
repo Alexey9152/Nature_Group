@@ -1,322 +1,235 @@
 #include "expression_server.h"
+#include <QDataStream>
+#include <QFile>
+#include <QTextStream>
+#include <stack>
+#include <cmath>
 
-ExpressionServer::ExpressionServer(QObject *parent) : QObject(parent)
-{
+ExpressionServer::ExpressionServer(QObject *parent) : QObject(parent) {
     tcpServer = new QTcpServer(this);
-    connect(tcpServer, &QTcpServer::newConnection, this, &ExpressionServer::newConnection);
+    connect(tcpServer, &QTcpServer::newConnection, this, &ExpressionServer::onNewConnection);
 }
 
-void ExpressionServer::start(quint16 port)
-{
+void ExpressionServer::start(quint16 port) {
     if (!tcpServer->listen(QHostAddress::Any, port)) {
-        qDebug() << "Server could not start!";
+        emit logMessage("Server could not start: " + tcpServer->errorString(), "red");
     } else {
-        qDebug() << "Server started on port" << port;
+        emit logMessage(QString("Server started and listening on port %1").arg(port), "green");
     }
 }
 
-void ExpressionServer::newConnection()
-{
+void ExpressionServer::onNewConnection() {
     QTcpSocket *socket = tcpServer->nextPendingConnection();
-    connect(socket, &QTcpSocket::readyRead, this, &ExpressionServer::readData);
-    connect(socket, &QTcpSocket::disconnected, this, &ExpressionServer::clientDisconnected);
-    qDebug() << "New client connected";
+    connect(socket, &QTcpSocket::readyRead, this, &ExpressionServer::onReadyRead);
+    connect(socket, &QTcpSocket::disconnected, this, &ExpressionServer::onClientDisconnected);
+    clients.insert(socket, ClientInfo());
+    emit logMessage("New client connected: " + socket->peerAddress().toString(), "blue");
 }
 
-void ExpressionServer::readData()
-{
+void ExpressionServer::onReadyRead() {
     QTcpSocket *socket = qobject_cast<QTcpSocket*>(sender());
-    if (!socket) return;
+    if (!socket || !clients.contains(socket)) return;
 
-    QByteArray data = socket->readAll();
-    processRequest(socket, data);
-}
-
-void ExpressionServer::clientDisconnected()
-{
-    QTcpSocket *socket = qobject_cast<QTcpSocket*>(sender());
-    if (socket) {
-        socket->deleteLater();
-        qDebug() << "Client disconnected";
-    }
-}
-
-void ExpressionServer::processRequest(QTcpSocket* socket, const QByteArray& data)
-{
-    QDataStream in(data);
+    QDataStream in(socket);
     in.setVersion(QDataStream::Qt_6_0);
 
-    quint32 requestSize;
-    QString expression;
-    int operandCount;
-    
-    in >> requestSize >> expression >> operandCount;
+    while(socket->bytesAvailable() > 0) {
+        quint16 blockSize;
+        if (socket->bytesAvailable() < sizeof(quint16)) return;
+        in >> blockSize;
+        if (socket->bytesAvailable() < blockSize) return;
 
-    QMap<QString, double> operands;
-    for (int i = 0; i < operandCount; ++i) {
-        QString name;
-        double value;
-        in >> name >> value;
-        operands[name] = value;
+        quint16 msgTypeRaw;
+        in >> msgTypeRaw;
+        MessageType msgType = static_cast<MessageType>(msgTypeRaw);
+        ClientInfo &info = clients[socket];
+
+        if (msgType == MessageType::C2S_EXPRESSION_SUBMISSION && info.state == ClientInfo::WaitingForExpression) {
+            handleExpressionSubmission(socket, in);
+        } else if (msgType == MessageType::C2S_COEFFICIENTS_SUBMISSION && info.state == ClientInfo::WaitingForCoefficients) {
+            handleCoefficientsSubmission(socket, in);
+        } else {
+            emit logMessage("Protocol error or wrong state from client " + socket->peerAddress().toString(), "red");
+            sendResponse(socket, MessageType::S2C_PROTOCOL_ERROR, "Invalid message for current state.");
+            socket->disconnectFromHost();
+        }
     }
+}
 
-    std::string rpn;
-    if (!convertToRPN(expression, rpn)) {
-        QByteArray response;
-        QDataStream out(&response, QIODevice::WriteOnly);
-        out.setVersion(QDataStream::Qt_6_0);
-        out << quint32(1) << QString("Error in expression");
-        socket->write(response);
+void ExpressionServer::handleExpressionSubmission(QTcpSocket* socket, QDataStream& in) {
+    ClientInfo& info = clients[socket];
+    info.timer.start();
+
+    QString expression, clientRpn;
+    in >> expression >> clientRpn;
+    info.expression = expression;
+
+    QString serverRpn, errorMsg;
+    if (!convertToRPN(expression, serverRpn, errorMsg)) {
+        sendResponse(socket, MessageType::S2C_EXPRESSION_ERROR, errorMsg);
+        addHistoryRecord("Expression Error", expression, clientRpn, errorMsg, info.timer.elapsed());
+        info.state = ClientInfo::WaitingForExpression;
         return;
     }
+
+    info.rpn = serverRpn;
+    if (serverRpn == clientRpn) {
+        emit logMessage("RPN match for '" + expression + "'. Requesting coefficients.", "darkgreen");
+        sendResponse(socket, MessageType::S2C_RPN_MATCH_REQUEST_COEFFS);
+        info.state = ClientInfo::WaitingForCoefficients;
+    } else {
+        emit logMessage("RPN mismatch for '" + expression + "'. Sending correct RPN.", "orange");
+        sendResponse(socket, MessageType::S2C_RPN_MISMATCH_SEND_CORRECT, serverRpn);
+        QString logMsg = "RPN Mismatch. Client: " + clientRpn + ", Server: " + serverRpn;
+        addHistoryRecord("RPN Mismatch", expression, clientRpn, logMsg, info.timer.elapsed());
+        info.state = ClientInfo::WaitingForExpression;
+    }
+}
+
+void ExpressionServer::handleCoefficientsSubmission(QTcpSocket* socket, QDataStream& in) {
+    ClientInfo& info = clients[socket];
+    QMap<QString, double> operands;
+    in >> operands;
 
     double result;
-    if (!calculateRPN(rpn, operands, result)) {
-        QByteArray response;
-        QDataStream out(&response, QIODevice::WriteOnly);
-        out.setVersion(QDataStream::Qt_6_0);
-        out << quint32(1) << QString("Calculation error");
-        socket->write(response);
-        return;
+    QString errorMsg;
+    if (!calculateRPN(info.rpn, operands, result, errorMsg)) {
+        emit logMessage("Calculation error for '" + info.expression + "': " + errorMsg, "red");
+        sendResponse(socket, MessageType::S2C_CALCULATION_ERROR, errorMsg);
+        addHistoryRecord("Calculation Error", info.expression, info.rpn, errorMsg, info.timer.elapsed());
+    } else {
+        emit logMessage("Calculation success for '" + info.expression + "'. Result: " + QString::number(result), "magenta");
+        sendResponse(socket, MessageType::S2C_FINAL_RESULT, QString::number(result, 'g', 15));
+        addHistoryRecord("Calculation Success", info.expression, info.rpn, QString::number(result, 'g', 15), info.timer.elapsed());
     }
+    info.state = ClientInfo::WaitingForExpression;
+}
 
-    QByteArray response;
-    QDataStream out(&response, QIODevice::WriteOnly);
+void ExpressionServer::onClientDisconnected() {
+    QTcpSocket *socket = qobject_cast<QTcpSocket*>(sender());
+    if (socket) {
+        emit logMessage("Client disconnected: " + socket->peerAddress().toString(), "orange");
+        clients.remove(socket);
+        socket->deleteLater();
+    }
+}
+
+void ExpressionServer::sendResponse(QTcpSocket* socket, MessageType type, const QString &payload) {
+    QByteArray block;
+    QDataStream out(&block, QIODevice::WriteOnly);
     out.setVersion(QDataStream::Qt_6_0);
-    out << quint32(0) << result;
-    socket->write(response);
+    out << quint16(0) << static_cast<quint16>(type);
+    if (!payload.isEmpty()) out << payload;
+    out.device()->seek(0);
+    out << quint16(block.size() - sizeof(quint16));
+    socket->write(block);
 }
 
-bool ExpressionServer::convertToRPN(const QString& expression, std::string& B)
-{
-    std::queue<char> exprQueue;
-    for (QChar c : expression) {
-        exprQueue.push(c.toLatin1());
-    }
-    
-    char a;
-    std::stack<char> stack1;
-    bool indicator = true;
-    char pred = 0;
-    
-    while (!exprQueue.empty() && indicator) {
-        a = exprQueue.front();
-        exprQueue.pop();
-
-        if (a == '(' || a == '[' || a == '{') {
-            if (pred != '+' && pred != '-' && pred != '*' && pred != '/' && pred != '('
-                && pred != '[' && pred != '{' && pred != 0) {
-                indicator = false;
-            } else {
-                stack1.push(a);
-            }
-        } else if ((a == '+' || a == '-' || a == '*' || a == '/') && exprQueue.empty()) {
-            indicator = false;
-        } else if (a == ')') {
-            if (pred == '(') {
-                indicator = false;
-            } else {
-                if (stack1.empty()) {
-                    indicator = false;
-                } else {
-                    while (stack1.top() != '(' && indicator) {
-                        if (stack1.empty()) {
-                            indicator = false;
-                        } else if (pred == '-' || pred == '+' || pred == '*' || pred == '/') {
-                            indicator = false;
-                        } else if (stack1.top() == '[') {
-                            indicator = false;
-                        } else if (stack1.top() == '{') {
-                            indicator = false;
-                        } else {
-                            B.push_back(stack1.top());
-                            B.push_back(' ');
-                            stack1.pop();
-                        }
-                    }
-                    if (indicator)
-                        stack1.pop();
-                }
-            }
-        } else if (a == ']') {
-            if (pred == '[') {
-                indicator = false;
-            } else {
-                if (stack1.empty()) {
-                    indicator = false;
-                } else {
-                    while (stack1.top() != '[' && indicator) {
-                        if (stack1.empty()) {
-                            indicator = false;
-                        } else if (pred == '-' || pred == '+' || pred == '*' || pred == '/') {
-                            indicator = false;
-                        } else if (stack1.top() == '(') {
-                            indicator = false;
-                        } else if (stack1.top() == '{') {
-                            indicator = false;
-                        } else {
-                            B.push_back(stack1.top());
-                            B.push_back(' ');
-                            stack1.pop();
-                        }
-                    }
-                    if (indicator)
-                        stack1.pop();
-                }
-            }
-        } else if (a == '}') {
-            if (pred == '{') {
-                indicator = false;
-            } else {
-                if (stack1.empty()) {
-                    indicator = false;
-                } else {
-                    while (stack1.top() != '{' && indicator) {
-                        if (stack1.empty()) {
-                            indicator = false;
-                        } else if (pred == '-' || pred == '+' || pred == '*' || pred == '/') {
-                            indicator = false;
-                        } else if (stack1.top() == '[') {
-                            indicator = false;
-                        } else if (stack1.top() == '(') {
-                            indicator = false;
-                        } else {
-                            B.push_back(stack1.top());
-                            B.push_back(' ');
-                            stack1.pop();
-                        }
-                    }
-                    if (indicator)
-                        stack1.pop();
-                }
-            }
-        } else if ((a == '+' || a == '-' || a == '*' || a == '/') && stack1.empty() && pred != 0) {
-            stack1.push(a);
-        } else if ((a == '+' || a == '-')) {
-            if (pred == 0 || pred == '(' || pred == '[' || pred == '{') {
-                stack1.push(a);
-                B.push_back('0');
-                B.push_back(' ');
-            } else if (pred == '*' || pred == '/' || pred == '+' || pred == '-') {
-                indicator = false;
-            } else {
-                while (!stack1.empty() && stack1.top() != '(' && stack1.top() != '['
-                       && stack1.top() != '{') {
-                    B.push_back(stack1.top());
-                    B.push_back(' ');
-                    stack1.pop();
-                }
-                stack1.push(a);
-            }
-        } else if ((a == '*' || a == '/')) {
-            if (pred == 0 || pred == '(' || pred == '[' || pred == '{') {
-                indicator = false;
-            } else if (pred == '*' || pred == '/' || pred == '+' || pred == '-') {
-                indicator = false;
-            } else {
-                while (!stack1.empty() && stack1.top() != '(' && stack1.top() != '['
-                       && stack1.top() != '{' && stack1.top() != '+' && stack1.top() != '-') {
-                    B.push_back(stack1.top());
-                    B.push_back(' ');
-                    stack1.pop();
-                }
-                stack1.push(a);
-            }
-        } else {
-            if (pred == ')' || pred == ']' || pred == '}') {
-                indicator = false;
-            } else if (pred != 0 && pred != '(' && pred != ')' && pred != '[' && pred != ']'
-                       && pred != '{' && pred != '}' && pred != '+' && pred != '-' && pred != '*'
-                       && pred != '/') {
-                if (!B.empty())
-                    B.pop_back();
-            }
-            B.push_back(a);
-            B.push_back(' ');
-        }
-        pred = a;
-    }
-
-    while (!stack1.empty() && indicator) {
-        if (stack1.top() == '(') {
-            indicator = false;
-        } else if (stack1.top() == '[') {
-            indicator = false;
-        } else if (stack1.top() == '{') {
-            indicator = false;
-        } else {
-            B.push_back(stack1.top());
-            B.push_back(' ');
-            stack1.pop();
-        }
-    }
-
-    return indicator && !B.empty();
+void ExpressionServer::addHistoryRecord(const QString& type, const QString& expr, const QString& rpn, const QString& res, qint64 time) {
+    HistoryRecord record;
+    record.dateTime = Date::now();
+    record.requestType = type;
+    record.expression = expr;
+    record.rpn = rpn;
+    record.result = res;
+    record.processingTime = time;
+    history.append(record);
+    emit logMessage("History record added: " + type, "gray");
+    emit historyUpdated(history);
 }
 
-bool ExpressionServer::calculateRPN(const std::string& rpn, const QMap<QString, double>& operands, double& finalResult)
-{
-    std::string B = rpn;
-    B += ' ';
-    std::stack<double> stack2;
-    std::string token;
-    size_t pos = 0;
-    bool indicator = true;
+void ExpressionServer::saveHistoryToFile() {
+    QFile file("server_history.txt");
+    if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QTextStream out(&file);
+        out << "DateTime\tType\tExpression\tRPN\tResult\tProcessingTime(ms)\n";
+        for (const auto& record : history) {
+            out << QString::fromStdString(record.dateTime.toString()) << "\t" << record.requestType << "\t"
+                << record.expression << "\t" << record.rpn << "\t"
+                << record.result << "\t" << record.processingTime << "\n";
+        }
+        file.close();
+        emit logMessage("History saved to server_history.txt", "purple");
+    } else {
+        emit logMessage("Failed to save history: " + file.errorString(), "red");
+    }
+}
 
-    while ((pos = B.find(' ')) != std::string::npos && indicator) {
-        token = B.substr(0, pos);
-        B.erase(0, pos + 1);
+int ExpressionServer::getPrecedence(char op) {
+    if (op == '+' || op == '-') return 1;
+    if (op == '*' || op == '/') return 2;
+    if (op == '^') return 3;
+    return 0;
+}
 
-        if (token.empty())
-            continue;
+bool ExpressionServer::isOperator(char c) {
+    return c == '+' || c == '-' || c == '*' || c == '/' || c == '^';
+}
 
-        if (token == "+" || token == "-" || token == "*" || token == "/") {
-            if (stack2.size() < 2) {
-                return false;
+bool ExpressionServer::convertToRPN(const QString& expression, QString& rpn, QString& error) {
+    std::stack<char> opStack;
+    std::string output;
+    std::string expr = expression.toStdString();
+    for (size_t i = 0; i < expr.length(); ++i) {
+        char c = expr[i];
+        if (isspace(c)) continue;
+        if (isdigit(c) || (c == '.')) {
+            while (i < expr.length() && (isdigit(expr[i]) || expr[i] == '.')) output += expr[i++];
+            output += ' '; i--;
+        } else if (isalpha(c)) {
+            while (i < expr.length() && isalnum(expr[i])) output += expr[i++];
+            output += ' '; i--;
+        } else if (c == '(') {
+            opStack.push(c);
+        } else if (c == ')') {
+            while (!opStack.empty() && opStack.top() != '(') {
+                output += opStack.top(); output += ' '; opStack.pop();
             }
+            if (opStack.empty()) { error = "Mismatched parentheses."; return false; }
+            opStack.pop();
+        } else if (isOperator(c)) {
+            while (!opStack.empty() && opStack.top() != '(' && getPrecedence(opStack.top()) >= getPrecedence(c)) {
+                output += opStack.top(); output += ' '; opStack.pop();
+            }
+            opStack.push(c);
+        } else {
+            error = QString("Invalid character: %1").arg(c); return false;
+        }
+    }
+    while (!opStack.empty()) {
+        if (opStack.top() == '(') { error = "Mismatched parentheses."; return false; }
+        output += opStack.top(); output += ' '; opStack.pop();
+    }
+    rpn = QString::fromStdString(output).trimmed();
+    return true;
+}
 
-            double b = stack2.top();
-            stack2.pop();
-            double a = stack2.top();
-            stack2.pop();
-            double result = 0;
-
-            if (token == "+")
-                result = a + b;
-            else if (token == "-")
-                result = a - b;
-            else if (token == "*")
-                result = a * b;
+bool ExpressionServer::calculateRPN(const QString& rpn, const QMap<QString, double>& operands, double& finalResult, QString& error) {
+    std::stack<double> calcStack;
+    QStringList tokens = rpn.split(' ', Qt::SkipEmptyParts);
+    for (const QString& token : tokens) {
+        if (isOperator(token[0].toLatin1()) && token.length() == 1) {
+            if (calcStack.size() < 2) { error = "Syntax error in RPN."; return false; }
+            double b = calcStack.top(); calcStack.pop();
+            double a = calcStack.top(); calcStack.pop();
+            if (token == "+") calcStack.push(a + b);
+            else if (token == "-") calcStack.push(a - b);
+            else if (token == "*") calcStack.push(a * b);
             else if (token == "/") {
-                if (b == 0) {
-                    return false;
-                }
-                result = a / b;
-            }
-            stack2.push(result);
-        } else if (std::all_of(token.begin(), token.end(), [](char c) {
-                       return std::isdigit(c) || c == '.' || c == ',';
-                   })) {
-            std::replace(token.begin(), token.end(), ',', '.');
-            try {
-                stack2.push(std::stod(token));
-            } catch (const std::exception &) {
-                return false;
+                if (b == 0.0) { error = "Division by zero."; return false; }
+                calcStack.push(a / b);
+            } else if (token == "^") {
+                calcStack.push(pow(a, b));
             }
         } else {
-            QString tokenQ = QString::fromStdString(token);
-            if (!operands.contains(tokenQ)) {
-                return false;
-            }
-            double value = operands[tokenQ];
-            stack2.push(value);
+            bool isNumber;
+            double value = token.toDouble(&isNumber);
+            if (isNumber) calcStack.push(value);
+            else if (operands.contains(token)) calcStack.push(operands.value(token));
+            else { error = "Unknown variable: " + token; return false; }
         }
     }
-
-    if (stack2.size() != 1) {
-        return false;
-    }
-    
-    finalResult = stack2.top();
+    if (calcStack.size() != 1) { error = "Invalid RPN expression."; return false; }
+    finalResult = calcStack.top();
     return true;
 }

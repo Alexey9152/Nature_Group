@@ -1,12 +1,10 @@
-#include <QCoreApplication>
-#include "expression_server.h"
+#include <QApplication>
+#include "serverwindow.h"
 
 int main(int argc, char *argv[])
 {
-    QCoreApplication app(argc, argv);
-    
-    ExpressionServer server;
-    server.start(12345); // Сервер на порту 12345
-    
-    return app.exec();
+    QApplication a(argc, argv);
+    ServerWindow w;
+    w.show();
+    return a.exec();
 }
