@@ -1,8 +1,0 @@
-<!DOCTYPE RCC><RCC version="1.0">
-<qresource prefix="/">
-<file alias="sounds/cuckoo.wav">C:/Users/Alexey/Documents/untitled3/sounds/cuckoo.wav</file>
-<file alias="sounds/gong.wav">C:/Users/Alexey/Documents/untitled3/sounds/gong.wav</file>
-<file alias="sounds/tick.wav">C:/Users/Alexey/Documents/untitled3/sounds/tick.wav</file>
-<file alias="sounds/tock.wav">C:/Users/Alexey/Documents/untitled3/sounds/tock.wav</file>
-</qresource>
-</RCC>
