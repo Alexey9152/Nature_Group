@@ -20,6 +20,3 @@ SOURCES += \
 HEADERS += \
     Date.h \
     mainwindow.h
-
-FORMS += \
-    mainwindow.ui
