@@ -2,7 +2,10 @@
 #define DATE_H
 
 #include <iostream>
+#include <string>
 #include <ctime>
+#include <sstream>
+#include <iomanip>
 
 class Date {
 public:
@@ -10,19 +13,17 @@ public:
     Date(const Date& other);
     ~Date() = default;
 
-    // Операторы сравнения
     bool operator>(const Date& other) const;
     bool operator<(const Date& other) const;
     bool operator==(const Date& other) const;
     bool operator!=(const Date& other) const;
     bool operator<=(const Date& other) const;
     bool operator>=(const Date& other) const;
-
-    // Оператор присваивания
     Date& operator=(const Date& other);
 
-    // Оператор вывода
     friend std::ostream& operator<<(std::ostream& os, const Date& date);
+    std::string toString() const;
+    static Date now();
 
 private:
     int day, month, year;
