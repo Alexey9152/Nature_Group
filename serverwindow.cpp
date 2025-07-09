@@ -38,7 +38,7 @@ ServerWindow::~ServerWindow()
 
 void ServerWindow::setupUi()
 {
-    setWindowTitle("Expression Server Control Panel");
+    setWindowTitle("Expression Server Control Panel, LipovskiyMatvei, Липовский М.В."); // Changed by Matvei Lipovskiy
     resize(900, 700);
 
     logView = new QPlainTextEdit(this);
