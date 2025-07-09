@@ -1,41 +1,20 @@
-QT       += core gui
-QT += core gui widgets
-QT += multimedia
-
-
-
-greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
+QT       += core gui widgets multimedia
 
 CONFIG += c++17
 
-# You can make your code fail to compile if it uses deprecated APIs.
-# In order to do so, uncomment the following line.
-#DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
+# The following define makes your compiler emit warnings if you use
+# any Qt feature that has been marked deprecated.
+DEFINES += QT_DEPRECATED_WARNINGS
 
+# Исходные файлы C++
 SOURCES += \
     main.cpp \
     mainwindow.cpp
 
+# Заголовочные файлы
 HEADERS += \
     mainwindow.h
 
-FORMS +=
-
-TRANSLATIONS += \
-CONFIG += lrelease
-CONFIG += embed_translations
-
-# Default rules for deployment.
-qnx: target.path = /tmp/$${TARGET}/bin
-else: unix:!android: target.path = /opt/$${TARGET}/bin
-!isEmpty(target.path): INSTALLS += target
-
-DISTFILES += \
-    sounds/cuckoo.wav \
-    sounds/gong.wav \
-    sounds/tick.wav \
-    sounds/tock.wav
-
-RESOURCES += resources.qrc
-
-
+# Файлы ресурсов (для звуков)
+RESOURCES += \
+    resources.qrc

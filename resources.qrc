@@ -1,9 +1,10 @@
-<!DOCTYPE RCC>
-<RCC version="1.0">
-  <qresource prefix="/sounds">
+<!DOCTYPE RCC><RCC version="1.0">
+<qresource prefix="/">
+    <file>sounds/cuckoo.wav</file>
+    <file>sounds/gong.wav</file>
     <file>sounds/tick.wav</file>
     <file>sounds/tock.wav</file>
-    <file>sounds/gong.wav</file>
-    <file>sounds/cuckoo.wav</file>
-  </qresource>
+    <file>images/door.png</file>
+    <file>images/cuckoo.png</file>
+</qresource>
 </RCC>

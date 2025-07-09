@@ -1,41 +1,44 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
-#include <QMainWindow>
-#include <QTime>
-#include <QTimer>
-#include <QPushButton>
-#include <QSpinBox>
-#include <QVBoxLayout>
+#include <QAudioOutput>
 #include <QGroupBox>
 #include <QLabel>
+#include <QMainWindow>
+#include <QMediaPlayer>
 #include <QPainter>
 #include <QPen>
-#include <QMediaPlayer>
+#include <QPushButton>
+#include <QSpinBox>
+#include <QTime>
+#include <QTimer>
+#include <QVBoxLayout>
 #include <cmath>
-#include <QAudioOutput>
+#include <QPixmap>
 
-class ClockWidget : public QWidget {
+class ClockWidget : public QWidget
+{
     Q_OBJECT
 public:
-    explicit ClockWidget(QWidget *parent = nullptr) : QWidget(parent) {
-        setMinimumSize(300, 300);
-    }
+    explicit ClockWidget(QWidget *parent = nullptr);
+    void setTime(const QTime &time);
 
-    void setTime(const QTime &time) {
-        m_time = time;
-        update();
-    }
-
+public slots:
+    void showCuckoo();
+    void hideCuckoo();
 
 protected:
     void paintEvent(QPaintEvent *) override;
 
 private:
-    QTime m_time = QTime::currentTime();
+    QTime m_time;
+    QPixmap m_doorPixmap;
+    QPixmap m_cuckooPixmap;
+    bool m_cuckooVisible = false;
 };
 
-class MainWindow : public QMainWindow {
+class MainWindow : public QMainWindow
+{
     Q_OBJECT
 
 public:
@@ -45,19 +48,24 @@ public:
 private slots:
     void updateTime();
     void setCustomTime();
-    void playSoundEffect(int type);
+
+private:
     void playClockChime(int hour);
     void playCuckoo(int count);
 
-private:
+    // Визуальные компоненты
     ClockWidget *clockWidget;
     QSpinBox *hourSpin;
     QSpinBox *minuteSpin;
     QSpinBox *secondSpin;
+
+    // Таймеры
     QTimer *timer;
     QTimer *chimeTimer;
     QTimer *cuckooTimer;
-    bool useCustomTime = false;
+
+    // Внутреннее время часов
+    QTime m_time;
 
     // Звуковые эффекты
     QMediaPlayer *tickPlayer;
@@ -65,14 +73,10 @@ private:
     QMediaPlayer *gongPlayer;
     QMediaPlayer *cuckooPlayer;
 
-
-
-    // Для последовательного воспроизведения
+    // Для последовательного воспроизведения боя/кукушки
     int chimeCount = 0;
     int cuckooCount = 0;
     int currentChime = 0;
     int currentCuckoo = 0;
-
-
 };
 #endif // MAINWINDOW_H
