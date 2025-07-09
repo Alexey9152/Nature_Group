@@ -7,8 +7,8 @@
 #include <QLabel>
 #include <QList>
 #include <QRegularExpression>
-#include <QTimer> // Добавляем таймер
-#include <QPropertyAnimation> // Добавляем для анимации
+#include <QTimer>
+#include <QPropertyAnimation> // Добавляем для плавной анимации
 
 class MainWindow : public QMainWindow
 {
@@ -18,31 +18,38 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
+protected:
+    void resizeEvent(QResizeEvent *event) override; // Для обработки изменения размера окна
+
 private slots:
     void newConnection();
     void readClient();
     void clientDisconnected();
-    void updateAnimation(); // Слот для обновления анимации
+    void updateAnimationFrame(); // Обновление кадра анимации
 
 private:
     void setupUI();
     void processMessage(QTcpSocket *clientSocket, const QString &message);
     void showStudentPhoto(const QString &surname);
-    void startPhotoAnimation(); // Запуск анимации
-    void stopPhotoAnimation(); // Остановка анимации
+    void startPhotoAnimation();
+    void stopPhotoAnimation();
+    void centerPhoto(); // Центрирование фото
 
     QTcpServer *tcpServer;
     QList<QTcpSocket*> clientSockets;
 
+    // Элементы UI
+    QWidget *mainContainer;
     QLabel *statusLabel;
     QLabel *photoLabel;
 
-    // Анимационные элементы
+    // Анимация
     QTimer *animationTimer;
-    QPropertyAnimation *photoAnimation;
-    QString currentPhotoSurname; // Фамилия текущего студента
-    bool isPhotoAnimating; // Флаг активности анимации
-    int animationDirection; // Направление движения
+    QString currentPhotoSurname;
+    bool isPhotoAnimating;
+    int animationDirection;
+    int animationOffset;
+    int maxAnimationOffset;
 };
 
 #endif // MAINWINDOW_H

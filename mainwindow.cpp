@@ -6,17 +6,18 @@
 #include <QRegularExpression>
 #include <QRegularExpressionMatch>
 #include <QPixmap>
-#include <QTime>
-#include <QCoreApplication>
+#include <QResizeEvent>
 
 MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent), currentPhotoSurname(""), isPhotoAnimating(false), animationDirection(1)
+    : QMainWindow(parent), currentPhotoSurname(""),
+    isPhotoAnimating(false), animationDirection(1),
+    animationOffset(0), maxAnimationOffset(20)
 {
     setupUI();
 
     // Инициализация таймера анимации
     animationTimer = new QTimer(this);
-    connect(animationTimer, &QTimer::timeout, this, &MainWindow::updateAnimation);
+    connect(animationTimer, &QTimer::timeout, this, &MainWindow::updateAnimationFrame);
 
     tcpServer = new QTcpServer(this);
     if (!tcpServer->listen(QHostAddress::Any, 12345)) {
@@ -38,26 +39,51 @@ MainWindow::~MainWindow()
 
 void MainWindow::setupUI()
 {
-    setWindowTitle("Сервер Задний конец");
-    resize(600, 500);
+    setWindowTitle("Server, LipovskiyMatvei, Липовский М.В. ");
+    resize(800, 600); // Увеличиваем размер окна
 
-    QWidget *centralWidget = new QWidget(this);
-    QVBoxLayout *mainLayout = new QVBoxLayout(centralWidget);
+    // Главный контейнер
+    mainContainer = new QWidget(this);
+    QVBoxLayout *mainLayout = new QVBoxLayout(mainContainer);
+    mainLayout->setSpacing(20);
 
-    // Статус сервера
+    // Статус сервера (верхняя часть)
     statusLabel = new QLabel(this);
     statusLabel->setAlignment(Qt::AlignCenter);
+    statusLabel->setStyleSheet("font-weight: bold; font-size: 14px;");
+    statusLabel->setMinimumHeight(40);
+
+    // Контейнер для фото с фиксированной высотой
+    QWidget *photoContainer = new QWidget(this);
+    photoContainer->setMinimumHeight(400);
+    photoContainer->setStyleSheet("background-color: #f0f0f0; border: 1px solid #ccc;");
+
+    QVBoxLayout *containerLayout = new QVBoxLayout(photoContainer);
+    containerLayout->setContentsMargins(10, 10, 10, 10);
 
     // Область для фото
-    photoLabel = new QLabel(this);
+    photoLabel = new QLabel(photoContainer);
     photoLabel->setAlignment(Qt::AlignCenter);
-    photoLabel->setMinimumSize(300, 300);
-    photoLabel->setFrameStyle(QFrame::Box);
-    photoLabel->setText("Фото появится здесь\nпосле получения сообщения");
+    photoLabel->setStyleSheet("background-color: white;");
 
-    mainLayout->addWidget(statusLabel);
-    mainLayout->addWidget(photoLabel, 1);
-    setCentralWidget(centralWidget);
+    containerLayout->addWidget(photoLabel);
+
+    // Добавляем элементы в главный макет
+    mainLayout->addWidget(statusLabel, 0);
+    mainLayout->addWidget(photoContainer, 1);
+
+    setCentralWidget(mainContainer);
+
+    // Инициализируем фото
+    photoLabel->setText("Фото появится здесь\nпосле получения сообщения");
+}
+
+void MainWindow::resizeEvent(QResizeEvent *event)
+{
+    QMainWindow::resizeEvent(event);
+    if (!currentPhotoSurname.isEmpty()) {
+        showStudentPhoto(currentPhotoSurname);
+    }
 }
 
 void MainWindow::newConnection()
@@ -83,6 +109,7 @@ void MainWindow::readClient()
 
     // Останавливаем текущую анимацию перед обработкой нового сообщения
     stopPhotoAnimation();
+    animationOffset = 0;
 
     processMessage(clientSocket, message);
 }
@@ -95,7 +122,7 @@ void MainWindow::processMessage(QTcpSocket *clientSocket, const QString &message
 
     if (match.hasMatch()) {
         QString surname = match.captured(1);
-        currentPhotoSurname = surname; // Сохраняем фамилию для анимации
+        currentPhotoSurname = surname;
 
         // Отправка ответа клиенту
         QString response = "I'm not Garson, I'm Server! Go To Sleep To the Garden!";
@@ -130,28 +157,44 @@ void MainWindow::showStudentPhoto(const QString &surname)
     QPixmap studentPhoto(imagePath);
 
     if (!studentPhoto.isNull()) {
-        QPixmap scaledPhoto = studentPhoto.scaled(photoLabel->size().width() - 20,
-                                                  photoLabel->size().height() - 20,
-                                                  Qt::KeepAspectRatio,
-                                                  Qt::SmoothTransformation);
+        // Рассчитываем размер с учетом места для анимации
+        int maxWidth = photoLabel->parentWidget()->width() - 50;
+        int maxHeight = photoLabel->parentWidget()->height() - 50 - maxAnimationOffset;
+
+        QPixmap scaledPhoto = studentPhoto.scaled(
+            maxWidth,
+            maxHeight,
+            Qt::KeepAspectRatio,
+            Qt::SmoothTransformation
+            );
+
         photoLabel->setPixmap(scaledPhoto);
+        photoLabel->resize(scaledPhoto.size());
+        centerPhoto();
     } else {
         // Текстовая заглушка
         photoLabel->setText("🖼️ Фото студента: " + surname + "\n"
                                                              "🔁 Анимация прыжков активна\n"
                                                              "✅ Сообщение обработано успешно");
+        photoLabel->resize(photoLabel->sizeHint());
+        centerPhoto();
     }
+}
+
+void MainWindow::centerPhoto()
+{
+    QWidget *parent = photoLabel->parentWidget();
+    int x = (parent->width() - photoLabel->width()) / 2;
+    int y = (parent->height() - photoLabel->height() - maxAnimationOffset) / 2;
+    photoLabel->move(x, y);
 }
 
 void MainWindow::startPhotoAnimation()
 {
-    // Останавливаем предыдущую анимацию
-    stopPhotoAnimation();
-
-    // Запускаем новую анимацию
-    isPhotoAnimating = true;
-    animationDirection = 1; // Начинаем движение вниз
-    animationTimer->start(50); // Обновление каждые 50 мс (20 FPS)
+    if (!isPhotoAnimating) {
+        isPhotoAnimating = true;
+        animationTimer->start(50); // 20 FPS
+    }
 }
 
 void MainWindow::stopPhotoAnimation()
@@ -159,38 +202,24 @@ void MainWindow::stopPhotoAnimation()
     if (isPhotoAnimating) {
         animationTimer->stop();
         isPhotoAnimating = false;
-
-        // Возвращаем фото в исходное положение
-        photoLabel->move(photoLabel->x(), photoLabel->y() - 10);
     }
 }
 
-void MainWindow::updateAnimation()
+void MainWindow::updateAnimationFrame()
 {
     if (!isPhotoAnimating) return;
 
-    // Текущая позиция фото
-    int currentY = photoLabel->y();
+    // Обновляем смещение
+    animationOffset += animationDirection * 2;
 
-    // Максимальное смещение (10 пикселей)
-    const int maxOffset = 10;
-
-    // Изменяем позицию
-    if (animationDirection == 1) {
-        // Движение вниз
-        if (currentY < maxOffset) {
-            photoLabel->move(photoLabel->x(), currentY + 1);
-        } else {
-            animationDirection = -1; // Меняем направление
-        }
-    } else {
-        // Движение вверх
-        if (currentY > -maxOffset) {
-            photoLabel->move(photoLabel->x(), currentY - 1);
-        } else {
-            animationDirection = 1; // Меняем направление
-        }
+    // Меняем направление при достижении границ
+    if (animationOffset >= maxAnimationOffset || animationOffset <= -maxAnimationOffset) {
+        animationDirection *= -1;
     }
+
+    // Применяем смещение к позиции фото
+    QPoint pos = photoLabel->pos();
+    photoLabel->move(pos.x(), pos.y() - animationDirection * 1);
 }
 
 void MainWindow::clientDisconnected()
