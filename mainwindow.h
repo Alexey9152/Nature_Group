@@ -1,14 +1,14 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
-#include <QMainWindow>
-#include <QTcpSocket>
+#include <QFileDialog>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMainWindow>
 #include <QPushButton>
-#include <QTextEdit>
-#include <QFileDialog>
 #include <QRegularExpression>
+#include <QTcpSocket>
+#include <QTextEdit>
 
 #include <QCache>
 
@@ -44,10 +44,8 @@ private:
     QString currentFilePath;
     QLabel *imageLabel;
 
-
     QString currentSurname;
     void showStudentInGarden(const QString &surname);
-
 };
 
 #endif // MAINWINDOW_H

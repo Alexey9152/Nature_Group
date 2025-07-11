@@ -1,14 +1,16 @@
 #include "mainwindow.h"
-#include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QHostAddress>
 #include <QMessageBox>
-#include <QPixmap>
 #include <QPainter>
 #include <QPainterPath>
-MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
+#include <QPixmap>
+#include <QVBoxLayout>
+MainWindow::MainWindow(QWidget *parent)
+    : QMainWindow(parent)
 {
     setupUI();
+    setWindowTitle("Client, NatureGroupLAP");
     tcpSocket = new QTcpSocket(this);
 
     connect(tcpSocket, &QTcpSocket::readyRead, this, &MainWindow::readResponse);
@@ -18,7 +20,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 
 MainWindow::~MainWindow()
 {
-    if(tcpSocket->state() == QAbstractSocket::ConnectedState)
+    if (tcpSocket->state() == QAbstractSocket::ConnectedState)
         tcpSocket->disconnectFromHost();
 }
 
@@ -73,7 +75,7 @@ void MainWindow::setupUI()
 
 void MainWindow::handleReturnPressed()
 {
-    if(!messageEdit->text().trimmed().isEmpty() && sendButton->isEnabled()) {
+    if (!messageEdit->text().trimmed().isEmpty() && sendButton->isEnabled()) {
         sendMessage();
     }
 }
@@ -82,10 +84,9 @@ void MainWindow::showGardenImage()
 {
     QPixmap gardenImage(":/images/garden.jpg");
 
-    if(!gardenImage.isNull()) {
-        imageLabel->setPixmap(gardenImage.scaled(imageLabel->size(),
-                                                 Qt::KeepAspectRatio,
-                                                 Qt::SmoothTransformation));
+    if (!gardenImage.isNull()) {
+        imageLabel->setPixmap(
+            gardenImage.scaled(imageLabel->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
         imageLabel->show();
     } else {
         imageLabel->setText("🌳🌲🌴 Garden Image Missing 🌴🌲🌳");
@@ -95,12 +96,12 @@ void MainWindow::showGardenImage()
 
 void MainWindow::connectToServer()
 {
-    if(tcpSocket->state() == QAbstractSocket::ConnectedState)
+    if (tcpSocket->state() == QAbstractSocket::ConnectedState)
         tcpSocket->disconnectFromHost();
 
     tcpSocket->connectToHost(serverAddressEdit->text(), 12345);
 
-    if(tcpSocket->waitForConnected(3000)) {
+    if (tcpSocket->waitForConnected(3000)) {
         statusLabel->setText("Status: Connected to server");
         sendButton->setEnabled(true);
         appendMessage("System: Connected to server");
@@ -113,7 +114,7 @@ void MainWindow::sendMessage()
 {
     QString message = messageEdit->text().trimmed();
 
-    if(message.isEmpty()) {
+    if (message.isEmpty()) {
         QMessageBox::warning(this, "Error", "Please enter a message!");
         return;
     }
@@ -143,7 +144,7 @@ void MainWindow::readResponse()
     QString response;
     in >> response;
 
-    if(response.contains("Go To Sleep To the Garden!")) {
+    if (response.contains("Go To Sleep To the Garden!")) {
         appendMessage("Server: " + response);
         statusLabel->setText("Status: Correct message format");
         showStudentInGarden(currentSurname); // Используем сохраненное имя
@@ -153,7 +154,8 @@ void MainWindow::readResponse()
         imageLabel->hide();
     }
 }
-void MainWindow::showStudentInGarden(const QString &surname) {
+void MainWindow::showStudentInGarden(const QString &surname)
+{
     // 1. Загружаем фон сада
     QPixmap gardenImage(":/images/garden.jpg");
     if (gardenImage.isNull()) {
@@ -190,7 +192,6 @@ void MainWindow::showStudentInGarden(const QString &surname) {
     // 5. Отображаем результат
     imageLabel->setPixmap(resultImage);
     imageLabel->show();
-
 }
 
 void MainWindow::appendMessage(const QString &message)
