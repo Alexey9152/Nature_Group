@@ -10,9 +10,10 @@
 #include <QFileInfo>
 
 MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent)
+    : QMainWindow(parent),
+participantName("NatureGroupVUS")
 {
-    setWindowTitle("Калькулятор алгебралического выражения");
+    setWindowTitle(QString("Калькулятор алгебраического выражения - %1").arg(participantName));
     resize(800, 600);
 
     // Виджеты

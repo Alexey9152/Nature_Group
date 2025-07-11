@@ -777,7 +777,8 @@ debug/mainwindow.o: mainwindow.cpp mainwindow.h \
 		C:/Qt/6.8.2/mingw_64/include/QtWidgets/QMessageBox \
 		C:/Qt/6.8.2/mingw_64/include/QtWidgets/qmessagebox.h \
 		C:/Qt/6.8.2/mingw_64/include/QtWidgets/qdialogbuttonbox.h \
-		C:/Qt/6.8.2/mingw_64/include/QtWidgets/QVBoxLayout
+		C:/Qt/6.8.2/mingw_64/include/QtWidgets/QVBoxLayout \
+		C:/Qt/6.8.2/mingw_64/include/QtCore/QFileInfo
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o debug\mainwindow.o mainwindow.cpp
 
 debug/moc_mainwindow.o: debug/moc_mainwindow.cpp 

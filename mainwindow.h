@@ -37,6 +37,7 @@ private:
     QPushButton *openButton;
     QPushButton *clearButton;
     QString currentFile;
+    QString participantName;
 };
 
 #endif // MAINWINDOW_H
