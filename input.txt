@@ -1,3 +1,8 @@
-(ab+cd)
-ab=10,2
-cd=2,4
+{(do+[(re)]-(mi)*fa/(-sol)+((+lya)*si)*5.2)}
+do=1
+re=2
+mi=3
+fa=4
+sol=5
+lya=4
+si=3
