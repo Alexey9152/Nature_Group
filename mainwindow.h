@@ -15,6 +15,8 @@
 #include <QVBoxLayout>
 #include <cmath>
 #include <QPixmap>
+#include <QSlider>
+#include <QCheckBox>
 
 class ClockWidget : public QWidget
 {
@@ -22,6 +24,7 @@ class ClockWidget : public QWidget
 public:
     explicit ClockWidget(QWidget *parent = nullptr);
     void setTime(const QTime &time);
+    void setBackground(const QPixmap &pixmap);
 
 public slots:
     void showCuckoo();
@@ -34,6 +37,7 @@ private:
     QTime m_time;
     QPixmap m_doorPixmap;
     QPixmap m_cuckooPixmap;
+    QPixmap m_backgroundPixmap;
     bool m_cuckooVisible = false;
 };
 
@@ -48,16 +52,24 @@ public:
 private slots:
     void updateTime();
     void setCustomTime();
+    void resetToSystemTime();
+    void playNextChime();
+    void playNextCuckoo();
+    void toggleSounds(bool enabled);
+    void setVolume(int volume);
 
 private:
-    void playClockChime(int hour);
-    void playCuckoo(int count);
+    void startClockChime(int hour);
+    void startCuckoo(int count);
 
     // Визуальные компоненты
     ClockWidget *clockWidget;
     QSpinBox *hourSpin;
     QSpinBox *minuteSpin;
     QSpinBox *secondSpin;
+    QSlider *volumeSlider;
+    QCheckBox *soundsCheckBox;
+
 
     // Таймеры
     QTimer *timer;
@@ -72,6 +84,7 @@ private:
     QMediaPlayer *tockPlayer;
     QMediaPlayer *gongPlayer;
     QMediaPlayer *cuckooPlayer;
+    QList<QMediaPlayer*> m_allPlayers; // Список всех плееров для удобства
 
     // Для последовательного воспроизведения боя/кукушки
     int chimeCount = 0;
