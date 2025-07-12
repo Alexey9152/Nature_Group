@@ -12,7 +12,7 @@
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
-    setWindowTitle("Калькулятор алгебралического выражения");
+    setWindowTitle("NatureGroupКЮВ");
     resize(800, 600);
 
     // Виджеты
