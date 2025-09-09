@@ -57,7 +57,7 @@ void ClockWidget::paintEvent(QPaintEvent *)
     painter.translate(width() / 2.0, height() / 2.0);
 
     painter.setPen(Qt::NoPen);
-    painter.setBrush(QColor(255, 255, 255, 180));
+    painter.setBrush(QColor(255, 255, 255, 60));
     painter.drawEllipse(QPointF(0, 0), side / 2.0, side / 2.0);
 
     painter.setPen(QPen(Qt::black, 3));
@@ -118,6 +118,8 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
     setWindowTitle("Часы Lipo ");
+    QMenu *viewMenu = menuBar()->addMenu("Вид");
+
 
     m_time = QTime::currentTime();
     clockWidget = new ClockWidget;
@@ -210,6 +212,23 @@ MainWindow::MainWindow(QWidget *parent)
     connect(resetTimeButton, &QPushButton::clicked, this, &MainWindow::resetToSystemTime);
     connect(soundsCheckBox, &QCheckBox::toggled, this, &MainWindow::toggleSounds);
     connect(volumeSlider, &QSlider::valueChanged, this, &MainWindow::setVolume);
+
+
+
+    QAction *standardAction = viewMenu->addAction("Классический");
+    QAction *catsAction = viewMenu->addAction("Котик");
+    QAction *dogsAction = viewMenu->addAction("Собачки");
+    QAction *seaAction = viewMenu->addAction("Море");
+    QAction *forestAction = viewMenu->addAction("Лес");
+
+    connect(standardAction, &QAction::triggered, this, &MainWindow::setStyleStandard);
+    connect(catsAction, &QAction::triggered, this, &MainWindow::setStyleCats);
+    connect(dogsAction, &QAction::triggered, this, &MainWindow::setStyleDogs);
+    connect(seaAction, &QAction::triggered, this, &MainWindow::setStyleSea);
+    connect(forestAction, &QAction::triggered, this, &MainWindow::setStyleForest);
+
+    // Устанавливаем начальный стиль
+    applyStyle(Style::Classic);
 }
 
 MainWindow::~MainWindow() {}
@@ -324,4 +343,78 @@ void MainWindow::playNextCuckoo()
     if (currentCuckoo < cuckooCount) {
         cuckooTimer->start(800);
     }
+}
+// В класс ClockWidget добавляем метод:
+/*void ClockWidget::setHandColors(const QColor &hour, const QColor &minute, const QColor &second)
+{
+    m_hourHandColor = hour;
+    m_minuteHandColor = minute;
+    m_secondHandColor = second;
+    update();
+}*/
+// методы для фонов
+// Добавляем реализацию методов:
+void MainWindow::setStyleStandard() { applyStyle(Style::Classic); }
+void MainWindow::setStyleCats() { applyStyle(Style::Cats); }
+void MainWindow::setStyleDogs() { applyStyle(Style::Dogs); }
+void MainWindow::setStyleSea() { applyStyle(Style::Sea); }
+void MainWindow::setStyleForest() { applyStyle(Style::Forest); }
+
+void MainWindow::applyStyle(Style style)
+{
+    currentStyle = style;
+
+    switch(style) {
+    case Style::Classic:
+        hourHandColor = QColor(60, 60, 60);
+        minuteHandColor = QColor(40, 40, 40);
+        secondHandColor = Qt::red;
+        m_useImageBackground = false;
+        clockWidget->setBackground(QPixmap());
+        break;
+
+    case Style::Cats:
+        hourHandColor = QColor(255, 165, 0);
+        minuteHandColor = QColor(139, 69, 19);
+        secondHandColor = QColor(255, 105, 180);
+        m_useImageBackground = true;
+        if (m_clockFacePixmap.load(":/images/cats.jpg")) {
+            clockWidget->setBackground(m_clockFacePixmap);
+        }
+        break;
+
+    case Style::Dogs:
+        hourHandColor = QColor(139, 69, 19);
+        minuteHandColor = QColor(210, 180, 140);
+        secondHandColor = QColor(0, 100, 0);
+        m_useImageBackground = true;
+        if (m_clockFacePixmap.load(":/images/dogs.jpg")) {
+            clockWidget->setBackground(m_clockFacePixmap);
+        }
+        break;
+
+    case Style::Sea:
+        hourHandColor = QColor(0, 0, 139);
+        minuteHandColor = QColor(0, 191, 255);
+        secondHandColor = QColor(173, 216, 230);
+        m_useImageBackground = true;
+        if (m_clockFacePixmap.load(":/images/sea.jpg")) {
+            clockWidget->setBackground(m_clockFacePixmap);
+        }
+        break;
+
+    case Style::Forest:
+        hourHandColor = QColor(34, 139, 34);
+        minuteHandColor = QColor(107, 142, 35);
+        secondHandColor = QColor(144, 238, 144);
+        m_useImageBackground = true;
+        if (m_clockFacePixmap.load(":/images/forest.jpg")) {
+            clockWidget->setBackground(m_clockFacePixmap);
+        }
+        break;
+    }
+
+    // Обновляем цвета стрелок
+    //clockWidget->setHandColors(hourHandColor, minuteHandColor, secondHandColor);
+    clockWidget->update();
 }

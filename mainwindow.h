@@ -17,6 +17,9 @@
 #include <QPixmap>
 #include <QSlider>
 #include <QCheckBox>
+#include <QMenu>
+#include <QMenuBar>
+#include <QAction>
 
 class ClockWidget : public QWidget
 {
@@ -58,6 +61,13 @@ private slots:
     void toggleSounds(bool enabled);
     void setVolume(int volume);
 
+
+    void setStyleStandard();
+    void setStyleCats();
+    void setStyleDogs();
+    void setStyleSea();
+    void setStyleForest();
+
 private:
     void startClockChime(int hour);
     void startCuckoo(int count);
@@ -91,5 +101,29 @@ private:
     int cuckooCount = 0;
     int currentChime = 0;
     int currentCuckoo = 0;
+
+
+
+
+    QPixmap m_clockFacePixmap;
+    bool m_useImageBackground = true;
+
+    enum class Style {
+        Classic,
+        Cats,
+        Dogs,
+        Sea,
+        Forest
+    };
+    Style currentStyle;
+    QColor hourHandColor;
+    QColor minuteHandColor;
+    QColor secondHandColor;
+    QColor m_hourHandColor = QColor(60, 60, 60);
+    QColor m_minuteHandColor = QColor(40, 40, 40);
+    QColor m_secondHandColor = Qt::red;
+
+    void applyStyle(Style style);
+
 };
 #endif // MAINWINDOW_H

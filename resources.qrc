@@ -1,10 +1,14 @@
-<!DOCTYPE RCC><RCC version="1.0">
-<qresource prefix="/">
-    <file>sounds/cuckoo.wav</file>
-    <file>sounds/gong.wav</file>
-    <file>sounds/tick.wav</file>
-    <file>sounds/tock.wav</file>
-    <file>images/door.png</file>
-    <file>images/cuckoo.png</file>
-</qresource>
+<RCC>
+    <qresource prefix="/">
+        <file>sounds/cuckoo.wav</file>
+        <file>sounds/gong.wav</file>
+        <file>sounds/tick.wav</file>
+        <file>sounds/tock.wav</file>
+        <file>images/door.png</file>
+        <file>images/cuckoo.png</file>
+        <file>images/cats.jpg</file>
+        <file>images/dogs.jpg</file>
+        <file>images/sea.jpg</file>
+        <file>images/forest.jpg</file>
+    </qresource>
 </RCC>
