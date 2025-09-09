@@ -56,12 +56,24 @@ void ClockWidget::paintEvent(QPaintEvent *)
     painter.save();
     painter.translate(width() / 2.0, height() / 2.0);
 
+
     painter.setPen(Qt::NoPen);
     painter.setBrush(QColor(255, 255, 255, 60));
     painter.drawEllipse(QPointF(0, 0), side / 2.0, side / 2.0);
 
     painter.setPen(QPen(Qt::black, 3));
     painter.drawEllipse(QPointF(0, 0), side / 2.0, side / 2.0);
+
+    // Рисуем цифры
+    QFont font = painter.font();
+    font.setPointSize(15);
+    painter.setFont(font);
+    for (int i = 1; i <= 12; ++i) {
+        double angle = i * 30.0 * M_PI / 180.0;
+        int x = static_cast<int>(155 * sin(angle));
+        int y = static_cast<int>(-155 * cos(angle));
+        painter.drawText(x - 10, y - 10, 20, 20, Qt::AlignCenter, QString::number(i));
+    }
 
     for (int i = 0; i < 60; ++i) {
         if (i % 5 == 0) {
@@ -344,14 +356,7 @@ void MainWindow::playNextCuckoo()
         cuckooTimer->start(800);
     }
 }
-// В класс ClockWidget добавляем метод:
-/*void ClockWidget::setHandColors(const QColor &hour, const QColor &minute, const QColor &second)
-{
-    m_hourHandColor = hour;
-    m_minuteHandColor = minute;
-    m_secondHandColor = second;
-    update();
-}*/
+
 // методы для фонов
 // Добавляем реализацию методов:
 void MainWindow::setStyleStandard() { applyStyle(Style::Classic); }
