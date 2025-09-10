@@ -1,0 +1,14 @@
+debug/main.o
+debug/mainwindow.o
+debug/analogclock.o
+debug/manualinputwindow.o
+debug/numericformatwindow.o
+debug/settimewindow.o
+debug/textformatwindow.o
+debug/qrc_resources.o
+debug/moc_mainwindow.o
+debug/moc_analogclock.o
+debug/moc_manualinputwindow.o
+debug/moc_numericformatwindow.o
+debug/moc_settimewindow.o
+debug/moc_textformatwindow.o

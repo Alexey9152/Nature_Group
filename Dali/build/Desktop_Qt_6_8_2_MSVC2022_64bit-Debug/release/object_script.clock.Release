@@ -1,0 +1,10 @@
+release/main.o
+release/mainwindow.o
+release/analogclock.o
+release/numericformatwindow.o
+release/textformatwindow.o
+release/qrc_resources.o
+release/moc_mainwindow.o
+release/moc_analogclock.o
+release/moc_numericformatwindow.o
+release/moc_textformatwindow.o
